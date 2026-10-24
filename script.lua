@@ -10,15 +10,12 @@ local points = {
     Vector3.new(391, 2, -1106),
     Vector3.new(302, 1, -243),
     Vector3.new(349, 2, -1092),
-    Vector3.new(338, 20, -1218),
-    Vector3.new(210, 23, -9447),
+    Vector3.new(344, 116, -1222),
+    Vector3.new(210, 116, -9447),
+    Vector3.new(212, 23, -9447),
+    Vector3.new(210, 116, -9447),
+    Vector3.new(137, 116, 9947),
     Vector3.new(137, 25, 9947),
-
-    -- 7-я точка (замени координаты)
-    Vector3.new(0, 0, 0),
-
-    -- 8-я точка (замени координаты)
-    Vector3.new(0, 0, 0)
 }
 
 local running = false
