@@ -3,18 +3,9 @@ local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "FarmGui"
-gui.ResetOnSpawn = false
-gui.Parent = player:WaitForChild("PlayerGui")
+local SPEED = 20       -- скорость полёта
+local ARRIVAL_RADIUS = 5
 
-local button = Instance.new("TextButton")
-button.Size = UDim2.new(0, 150, 0, 45)
-button.Position = UDim2.new(0, 20, 0, 20)
-button.Text = "START FARM"
-button.Parent = gui
-
--- Точки маршрута в твоей игре
 local points = {
     Vector3.new(302, 1, -243),
     Vector3.new(338, 20, -1218),
@@ -22,85 +13,70 @@ local points = {
     Vector3.new(137, 25, 9947)
 }
 
-local farming = false
-local noclipConnection
-local flyConnection
+local gui = Instance.new("ScreenGui")
+gui.Name = "WaypointGui"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
 
-local function getCharacter()
+local button = Instance.new("TextButton")
+button.Size = UDim2.fromOffset(160, 45)
+button.Position = UDim2.fromOffset(20, 20)
+button.Text = "START ROUTE"
+button.Parent = gui
+
+local running = false
+local movementConnection
+
+local function getRoot()
     local character = player.Character or player.CharacterAdded:Wait()
-    local humanoid = character:WaitForChild("Humanoid")
-    local root = character:WaitForChild("HumanoidRootPart")
-
-    return character, humanoid, root
+    return character:WaitForChild("HumanoidRootPart")
 end
 
-local function startNoClip()
-    noclipConnection = RunService.Stepped:Connect(function()
-        local character = player.Character
+local function moveToPoint(target)
+    local root = getRoot()
 
-        if character then
-            for _, part in ipairs(character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
-            end
+    while running do
+        local delta = target - root.Position
+        local distance = delta.Magnitude
+
+        if distance <= ARRIVAL_RADIUS then
+            return true
         end
-    end)
-end
 
-local function stopNoClip()
-    if noclipConnection then
-        noclipConnection:Disconnect()
-        noclipConnection = nil
-    end
-end
+        local dt = RunService.Heartbeat:Wait()
+        local step = math.min(SPEED * dt, distance)
 
-local function flyTo(targetPosition, speed)
-    local character, humanoid, root = getCharacter()
-
-    humanoid.PlatformStand = true
-
-    while farming and (root.Position - targetPosition).Magnitude > 5 do
-        local direction = targetPosition - root.Position
-        local distance = direction.Magnitude
-
-        if distance > 0 then
-            local step = math.min(speed * RunService.Heartbeat:Wait(), distance)
-            root.CFrame = root.CFrame + direction.Unit * step
-        end
+        root.CFrame = root.CFrame + delta.Unit * step
     end
 
-    humanoid.PlatformStand = false
+    return false
 end
 
 button.MouseButton1Click:Connect(function()
-    if farming then
-        farming = false
-        stopNoClip()
-        button.Text = "START FARM"
-        return
-    end
+    running = not running
 
-    farming = true
-    button.Text = "STOP FARM"
+    if running then
+        button.Text = "STOP ROUTE"
 
-    startNoClip()
+        task.spawn(function()
+            for _, point in ipairs(points) do
+                if not running then
+                    break
+                end
 
-    task.spawn(function()
-        for _, point in ipairs(points) do
-            if not farming then
-                break
+                local arrived = moveToPoint(point)
+
+                if not arrived then
+                    break
+                end
+
+                task.wait(1)
             end
 
-            flyTo(point, 80)
-
-            -- Здесь можно добавить логику твоей игры,
-            -- которая выполняется после прибытия к точке.
-            task.wait(1)
-        end
-
-        farming = false
-        stopNoClip()
-        button.Text = "START FARM"
-    end)
+            running = false
+            button.Text = "START ROUTE"
+        end)
+    else
+        button.Text = "START ROUTE"
+    end
 end)
