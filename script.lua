@@ -50,7 +50,8 @@ local function teleportTo(target)
         return
     end
 
-    root.CFrame = CFrame.new(target)
+    -- Для собственной игры:
+    character:PivotTo(CFrame.new(target))
 
     root.AssemblyLinearVelocity = Vector3.zero
     root.AssemblyAngularVelocity = Vector3.zero
@@ -62,6 +63,15 @@ local function stopRoute()
 
     button.Text = "START ROUTE"
     button.BackgroundColor3 = Color3.fromRGB(40, 170, 80)
+end
+
+-- Задержка с возможностью остановки
+local function waitDelay(seconds)
+    local startTime = os.clock()
+
+    while running and os.clock() - startTime < seconds do
+        task.wait(0.05)
+    end
 end
 
 -- Кнопка START / STOP
@@ -78,10 +88,9 @@ button.MouseButton1Click:Connect(function()
 
     task.spawn(function()
 
-        -- Бесконечный цикл
+        -- Бесконечный маршрут
         while running do
 
-            -- Проходим все точки
             for _, point in ipairs(points) do
 
                 if not running then
@@ -90,13 +99,8 @@ button.MouseButton1Click:Connect(function()
 
                 teleportTo(point)
 
-                -- Задержка 5 секунд
-                local elapsed = 0
-
-                while elapsed < TELEPORT_DELAY and running do
-                    local dt = task.wait(0.1)
-                    elapsed += dt
-                end
+                -- Ждем 5 секунд после каждой точки
+                waitDelay(TELEPORT_DELAY)
 
             end
 
