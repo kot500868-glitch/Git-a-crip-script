@@ -6,6 +6,7 @@ local points = {
     Vector3.new(302, 1, -243),
     Vector3.new(338, 22, -1218),
     Vector3.new(221, 25, -9447),
+    Vector3.new(215, 25, -1210),
     Vector3.new(137, 30, 9949),
 }
 
