@@ -1,7 +1,20 @@
---========================================================
--- KOT:3 ROUTE MENU — INTERFACE
--- LocalScript | StarterPlayerScripts
---========================================================
+ --[[
+    INTERMEDIATE STUDIO
+    AUTO ROUTE + AUTO E
+
+    Author: Kot:3
+    Assisted by: ChatGPT (OpenAI)
+
+    Features:
+    - GUI Route Control
+    - Five Waypoints
+    - Auto E Interaction
+    - F6: Enable Auto E
+    - F7: Disable Auto E
+    - Start / Stop Route
+
+    Version: 1.0
+]]
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -9,546 +22,711 @@ local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
---========================================================
--- CONFIG
---========================================================
+--------------------------------------------------
+-- CONFIGURATION
+--------------------------------------------------
 
-local CONFIG = {
-    Creator = "Kot:3",
-    AssistedBy = "ChatGPT",
-    Version = "1.0",
-
-    OpenKey = Enum.KeyCode.RightShift,
-
-    Width = 560,
-    Height = 390,
-
-    Transparency = 0,
-    TextSize = 13,
+local points = {
+    {position = Vector3.new(302, 1, -243), interact = true},
+    {position = Vector3.new(338, 22, -1218), interact = true},
+    {position = Vector3.new(221, 25, -9447), interact = true},
+    {position = Vector3.new(215, 25, -1210), interact = false},
+    {position = Vector3.new(137, 30, 9949), interact = true},
 }
 
---========================================================
+local running = false
+local autoE = false
+local currentPoint = 0
+
+local TELEPORT_DELAY = 10
+local INTERACTION_DELAY = 0.5
+
+--------------------------------------------------
 -- COLORS
---========================================================
+--------------------------------------------------
 
 local COLORS = {
-    Background = Color3.fromRGB(22, 24, 31),
-    Header = Color3.fromRGB(32, 35, 45),
-    Sidebar = Color3.fromRGB(27, 29, 38),
-    Element = Color3.fromRGB(42, 46, 59),
-    Accent = Color3.fromRGB(90, 125, 190),
-    Green = Color3.fromRGB(50, 145, 90),
-    Red = Color3.fromRGB(160, 65, 65),
-    Text = Color3.fromRGB(240, 240, 245),
-    Muted = Color3.fromRGB(155, 160, 175),
+    Background = Color3.fromRGB(10, 10, 12),
+    Panel = Color3.fromRGB(20, 20, 24),
+    Card = Color3.fromRGB(28, 28, 33),
+
+    Red = Color3.fromRGB(213, 31, 54),
+    RedLight = Color3.fromRGB(245, 55, 75),
+
+    Text = Color3.fromRGB(245, 245, 245),
+    Muted = Color3.fromRGB(160, 160, 170),
+
+    Green = Color3.fromRGB(50, 220, 125),
+    Border = Color3.fromRGB(65, 65, 72),
 }
 
---========================================================
+--------------------------------------------------
+-- CLEANUP
+--------------------------------------------------
+
+local oldGui = playerGui:FindFirstChild("IntermediateGui")
+
+if oldGui then
+    oldGui:Destroy()
+end
+
+--------------------------------------------------
 -- GUI
---========================================================
+--------------------------------------------------
 
 local gui = Instance.new("ScreenGui")
-gui.Name = "Kot3RouteMenu"
+
+gui.Name = "IntermediateGui"
 gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = true
 gui.Parent = playerGui
 
+--------------------------------------------------
+-- MAIN WINDOW
+--------------------------------------------------
+
 local main = Instance.new("Frame")
-main.Name = "Main"
-main.Size = UDim2.fromOffset(CONFIG.Width, CONFIG.Height)
-main.Position = UDim2.new(0.5, -CONFIG.Width / 2, 0.5, -CONFIG.Height / 2)
+
+main.Size = UDim2.fromOffset(720, 470)
+main.Position = UDim2.new(0.5, -360, 0.5, -235)
+
 main.BackgroundColor3 = COLORS.Background
-main.BackgroundTransparency = CONFIG.Transparency
 main.BorderSizePixel = 0
+
 main.Parent = gui
 
-local mainCorner = Instance.new("UICorner")
-mainCorner.CornerRadius = UDim.new(0, 10)
-mainCorner.Parent = main
+Instance.new("UICorner", main).CornerRadius =
+    UDim.new(0, 14)
 
---========================================================
--- HELPERS
---========================================================
+local outline = Instance.new("UIStroke")
 
-local function corner(object, radius)
-    local c = Instance.new("UICorner")
-    c.CornerRadius = UDim.new(0, radius or 6)
-    c.Parent = object
-    return c
-end
+outline.Color = COLORS.Border
+outline.Thickness = 1
 
-local function label(parent, text, size, position, textSize)
-    local object = Instance.new("TextLabel")
-    object.Size = size
-    object.Position = position
-    object.BackgroundTransparency = 1
-    object.Text = text
-    object.TextColor3 = COLORS.Text
-    object.Font = Enum.Font.Gotham
-    object.TextSize = textSize or CONFIG.TextSize
-    object.TextWrapped = true
-    object.TextXAlignment = Enum.TextXAlignment.Left
-    object.Parent = parent
+outline.Parent = main
 
-    return object
-end
-
-local function button(parent, text, size, position, color)
-    local object = Instance.new("TextButton")
-    object.Size = size
-    object.Position = position
-    object.BackgroundColor3 = color or COLORS.Element
-    object.Text = text
-    object.TextColor3 = COLORS.Text
-    object.Font = Enum.Font.GothamSemibold
-    object.TextSize = CONFIG.TextSize
-    object.AutoButtonColor = true
-    object.Parent = parent
-
-    corner(object, 6)
-
-    return object
-end
-
-local function textbox(parent, placeholder, size, position, value)
-    local object = Instance.new("TextBox")
-    object.Size = size
-    object.Position = position
-    object.BackgroundColor3 = COLORS.Element
-    object.TextColor3 = COLORS.Text
-    object.PlaceholderColor3 = COLORS.Muted
-    object.PlaceholderText = placeholder
-    object.Text = tostring(value or "")
-    object.Font = Enum.Font.Gotham
-    object.TextSize = CONFIG.TextSize
-    object.ClearTextOnFocus = false
-    object.Parent = parent
-
-    corner(object, 6)
-
-    return object
-end
-
---========================================================
+--------------------------------------------------
 -- HEADER
---========================================================
+--------------------------------------------------
 
 local header = Instance.new("Frame")
-header.Size = UDim2.new(1, 0, 0, 42)
-header.BackgroundColor3 = COLORS.Header
+
+header.Size = UDim2.new(1, 0, 0, 90)
+
+header.BackgroundColor3 = COLORS.Panel
 header.BorderSizePixel = 0
+
 header.Parent = main
 
-corner(header, 10)
-label(
-    header,
-    "KOT:3  |  ROUTE MENU",
-    UDim2.new(1, -120, 1, 0),
-    UDim2.fromOffset(14, 0),
-    15
-)
-
-local minimizeButton = button(
-    header,
-    "—",
-    UDim2.fromOffset(30, 28),
-    UDim2.new(1, -75, 0, 7)
-)
-
-local closeButton = button(
-    header,
-    "×",
-    UDim2.fromOffset(30, 28),
-    UDim2.new(1, -38, 0, 7),
-    COLORS.Red
-)
-
---========================================================
--- DRAG WINDOW
---========================================================
-
-local dragging = false
-local dragStart
-local startPosition
-
-header.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPosition = main.Position
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStart
-
-        main.Position = UDim2.new(
-            startPosition.X.Scale,
-            startPosition.X.Offset + delta.X,
-            startPosition.Y.Scale,
-            startPosition.Y.Offset + delta.Y
-        )
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
-end)
-
---========================================================
--- SIDEBAR
---========================================================
-
-local sidebar = Instance.new("Frame")
-sidebar.Size = UDim2.new(0, 135, 1, -42)
-sidebar.Position = UDim2.fromOffset(0, 42)
-sidebar.BackgroundColor3 = COLORS.Sidebar
-sidebar.BorderSizePixel = 0
-sidebar.Parent = main
-
-local sidebarLayout = Instance.new("UIListLayout")
-sidebarLayout.Padding = UDim.new(0, 5)
-sidebarLayout.SortOrder = Enum.SortOrder.LayoutOrder
-sidebarLayout.Parent = sidebar
-
-local sidebarPadding = Instance.new("UIPadding")
-sidebarPadding.PaddingTop = UDim.new(0, 10)
-sidebarPadding.PaddingLeft = UDim.new(0, 8)
-sidebarPadding.PaddingRight = UDim.new(0, 8)
-sidebarPadding.Parent = sidebar
-
---========================================================
--- PAGE CONTAINER
---========================================================
-
-local pageContainer = Instance.new("Frame")
-pageContainer.Size = UDim2.new(1, -145, 1, -52)
-pageContainer.Position = UDim2.fromOffset(140, 47)
-pageContainer.BackgroundTransparency = 1
-pageContainer.Parent = main
-
-local pages = {}
-local pageButtons = {}
-
-local function createPage(name)
-    local page = Instance.new("ScrollingFrame")
-    page.Name = name
-    page.Size = UDim2.fromScale(1, 1)
-    page.BackgroundTransparency = 1
-    page.BorderSizePixel = 0
-    page.ScrollBarThickness = 4
-    page.CanvasSize = UDim2.fromOffset(0, 0)
-    page.Visible = false
-    page.Parent = pageContainer
-
-    local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 8)
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Parent = page
-
-    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        page.CanvasSize = UDim2.fromOffset(
-            0,
-            layout.AbsoluteContentSize.Y + 10
-        )
-    end)
-
-    pages[name] = page
-
-    local tab = button(
-        sidebar,
-        name,
-        UDim2.new(1, 0, 0, 30),
-        UDim2.new(),
-        COLORS.Element
-    )
-
-    pageButtons[name] = tab
-
-    return page
-end
-
-local function showPage(name)
-    for pageName, page in pairs(pages) do
-        page.Visible = pageName == name
-    end
-
-    for pageName, tab in pairs(pageButtons) do
-        tab.BackgroundColor3 =
-            pageName == name and COLORS.Accent or COLORS.Element
-    end
-end
-
---========================================================
--- PAGE ELEMENTS
---========================================================
-
-local function pageLabel(parent, text)
-    return label(
-        parent,
-        text,
-        UDim2.new(1, -12, 0, 28),
-        UDim2.new(),
-        14
-    )
-end
-local function pageButton(parent, text, color, callback)
-    local object = button(
-        parent,
-        text,
-        UDim2.new(1, -12, 0, 32),
-        UDim2.new(),
-        color
-    )
-
-    object.MouseButton1Click:Connect(callback)
-
-    return object
-end
-
-local function pageTextBox(parent, placeholder, value, callback)
-    local object = textbox(
-        parent,
-        placeholder,
-        UDim2.new(1, -12, 0, 30),
-        UDim2.new(),
-        value
-    )
-
-    object.FocusLost:Connect(function()
-        callback(object.Text)
-    end)
-
-    return object
-end
-
---========================================================
--- HOME PAGE
---========================================================
-
-local homePage = createPage("Главная")
-
-pageLabel(homePage, "Добро пожаловать в Kot:3 Route Menu")
-
-local status = pageLabel(homePage, "Статус: остановлен")
-
-pageButton(homePage, "Запустить маршрут", COLORS.Green, function()
-    if typeof(runRoute) == "function" then
-        runRoute()
-        status.Text = "Статус: запущен"
-    else
-        status.Text = "Функция runRoute не подключена"
-    end
-end)
-
-pageButton(homePage, "Остановить маршрут", COLORS.Red, function()
-    if typeof(stopRoute) == "function" then
-        stopRoute()
-        status.Text = "Статус: остановлен"
-    else
-        status.Text = "Функция stopRoute не подключена"
-    end
-end)
-
---========================================================
--- ROUTE PAGE
---========================================================
-
-local routePage = createPage("Маршрут")
-
-pageLabel(routePage, "Настройки маршрута")
-
-pageButton(routePage, "Добавить текущую позицию", COLORS.Green, function()
-    if typeof(getCurrentPosition) ~= "function" then
-        return
-    end
-
-    local position = getCurrentPosition()
-
-    if position and typeof(route) == "table" then
-        table.insert(route, position)
-    end
-end)
-
-pageButton(routePage, "Удалить последнюю точку", COLORS.Red, function()
-    if typeof(route) == "table" and #route > 0 then
-        table.remove(route, #route)
-    end
-end)
-
-pageButton(routePage, "Очистить маршрут", COLORS.Red, function()
-    if typeof(route) == "table" then
-        table.clear(route)
-    end
-end)
-
---========================================================
--- AUTO E PAGE
---========================================================
+Instance.new("UICorner", header).CornerRadius =
+    UDim.new(0, 14)
 
-local autoPage = createPage("Авто-E")
+--------------------------------------------------
+-- TITLE
+--------------------------------------------------
 
-pageLabel(autoPage, "Настройки взаимодействия")
+local title = Instance.new("TextLabel")
 
-pageLabel(autoPage, "Авто-взаимодействие можно подключить к механике ProximityPrompt твоей игры.")
+title.Position = UDim2.fromOffset(22, 12)
+title.Size = UDim2.fromOffset(450, 38)
 
---========================================================
--- SETTINGS PAGE
---========================================================
+title.BackgroundTransparency = 1
 
-local settingsPage = createPage("Настройки")
+title.Text = "INTERMEDIATE"
+title.TextColor3 = COLORS.Text
 
-pageLabel(settingsPage, "Настройки маршрута")
+title.TextSize = 28
+title.Font = Enum.Font.GothamBlack
 
-pageTextBox(settingsPage, "Задержка между точками", "3", function(value)
-    local delayValue = tonumber(value)
+title.TextXAlignment = Enum.TextXAlignment.Left
 
-    if delayValue and typeof(SETTINGS) == "table" then
-        SETTINGS.Delay = math.clamp(delayValue, 0, 120)
-    end
-end)
+title.Parent = header
 
---========================================================
--- INTERFACE PAGE
---========================================================
+--------------------------------------------------
+-- SUBTITLE
+--------------------------------------------------
 
-local interfacePage = createPage("Интерфейс")
+local subtitle = Instance.new("TextLabel")
 
-pageLabel(interfacePage, "Настройки интерфейса")
+subtitle.Position = UDim2.fromOffset(23, 50)
+subtitle.Size = UDim2.fromOffset(450, 24)
 
-pageButton(interfacePage, "Скрыть / показать меню", COLORS.Accent, function()
-    main.Visible = not main.Visible
-end)
+subtitle.BackgroundTransparency = 1
 
-pageButton(interfacePage, "Изменить прозрачность", COLORS.Element, function()
-    CONFIG.Transparency = CONFIG.Transparency == 0 and 0.35 or 0
-    main.BackgroundTransparency = CONFIG.Transparency
-end)
+subtitle.Text = "STUDIO / AUTO ROUTE / Kot:3"
+subtitle.TextColor3 = COLORS.Red
 
---========================================================
--- SIZE PAGE
---========================================================
+subtitle.TextSize = 14
+subtitle.Font = Enum.Font.GothamBold
 
-local sizePage = createPage("Размер")
+subtitle.TextXAlignment = Enum.TextXAlignment.Left
 
-pageLabel(sizePage, "Размер окна")
+subtitle.Parent = header
 
-pageTextBox(sizePage, "Ширина", CONFIG.Width, function(value)
-    local width = tonumber(value)
+--------------------------------------------------
+-- CLOSE BUTTON
+--------------------------------------------------
 
-    if width then
-        CONFIG.Width = math.clamp(width, 400, 900)
-        main.Size = UDim2.fromOffset(CONFIG.Width, CONFIG.Height)
-    end
-end)
+local closeButton = Instance.new("TextButton")
 
-pageTextBox(sizePage, "Высота", CONFIG.Height, function(value)
-    local height = tonumber(value)
-if height then
-        CONFIG.Height = math.clamp(height, 300, 700)
-        main.Size = UDim2.fromOffset(CONFIG.Width, CONFIG.Height)
-    end
-end)
+closeButton.Size = UDim2.fromOffset(36, 36)
+closeButton.Position = UDim2.new(1, -50, 0, 20)
+closeButton.BackgroundColor3 = COLORS.Card
 
-pageButton(sizePage, "Стандартный размер", COLORS.Element, function()
-    CONFIG.Width = 560
-    CONFIG.Height = 390
-    main.Size = UDim2.fromOffset(CONFIG.Width, CONFIG.Height)
-end)
+closeButton.Text = "×"
+closeButton.TextColor3 = COLORS.Text
 
---========================================================
--- INSTRUCTIONS PAGE
---========================================================
+closeButton.TextSize = 25
+closeButton.Font = Enum.Font.GothamBold
 
-local instructionPage = createPage("Инструкция")
+closeButton.Parent = header
 
-pageLabel(instructionPage, "Как пользоваться")
-
-pageLabel(instructionPage, "1. Открой страницу «Маршрут».")
-
-pageLabel(instructionPage, "2. Добавь нужные позиции персонажа.")
-
-pageLabel(instructionPage, "3. Настрой задержку на странице «Настройки».")
-
-pageLabel(instructionPage, "4. Запусти маршрут на главной странице.")
-
-pageLabel(instructionPage, "5. Для остановки нажми кнопку остановки.")
-
-pageLabel(instructionPage, "6. В «Размер» можно изменить размер меню.")
-
-pageLabel(instructionPage, "7. В «Интерфейс» находятся параметры внешнего вида.")
-
---========================================================
--- INFORMATION PAGE
---========================================================
-
-local infoPage = createPage("Информация")
-
-pageLabel(infoPage, "Kot:3 Route Menu")
-
-pageLabel(infoPage, "Создатель скрипта: " .. CONFIG.Creator)
-
-pageLabel(infoPage, "Помогал: " .. CONFIG.AssistedBy)
-
-pageLabel(infoPage, "Версия: " .. CONFIG.Version)
-
-pageLabel(infoPage, "Назначение: настройка маршрутов в собственной Roblox-игре.")
-
---========================================================
--- TAB CONNECTIONS
---========================================================
-
-for name, tab in pairs(pageButtons) do
-    tab.MouseButton1Click:Connect(function()
-        showPage(name)
-    end)
-end
-
---========================================================
--- MINIMIZE / CLOSE
---========================================================
-
-local minimized = false
-
-minimizeButton.MouseButton1Click:Connect(function()
-    minimized = not minimized
-
-    pageContainer.Visible = not minimized
-    sidebar.Visible = not minimized
-
-    main.Size = minimized
-        and UDim2.fromOffset(CONFIG.Width, 42)
-        or UDim2.fromOffset(CONFIG.Width, CONFIG.Height)
-
-    minimizeButton.Text = minimized and "+" or "—"
-end)
+Instance.new("UICorner", closeButton).CornerRadius =
+    UDim.new(0, 8)
 
 closeButton.MouseButton1Click:Connect(function()
     gui.Enabled = false
 end)
 
---========================================================
--- OPEN KEY
---========================================================
+--------------------------------------------------
+-- ROUTE CARD
+--------------------------------------------------
 
-UserInputService.InputBegan:Connect(function(input, processed)
-    if processed then
-        return
-    end
+local routeCard = Instance.new("Frame")
 
-    if input.KeyCode == CONFIG.OpenKey then
-        gui.Enabled = not gui.Enabled
+routeCard.Position = UDim2.fromOffset(20, 110)
+routeCard.Size = UDim2.fromOffset(430, 335)
+
+routeCard.BackgroundColor3 = COLORS.Card
+routeCard.BorderSizePixel = 0
+
+routeCard.Parent = main
+
+Instance.new("UICorner", routeCard).CornerRadius =
+    UDim.new(0, 12)
+
+--------------------------------------------------
+-- ROUTE TITLE
+--------------------------------------------------
+
+local routeTitle = Instance.new("TextLabel")
+
+routeTitle.Position = UDim2.fromOffset(18, 12)
+routeTitle.Size = UDim2.new(1, -36, 0, 30)
+
+routeTitle.BackgroundTransparency = 1
+
+routeTitle.Text = "ROUTE CONTROL"
+routeTitle.TextColor3 = COLORS.Text
+
+routeTitle.TextSize = 18
+routeTitle.Font = Enum.Font.GothamBold
+
+routeTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+routeTitle.Parent = routeCard
+
+--------------------------------------------------
+-- ROUTE INFO
+--------------------------------------------------
+
+local routeInfo = Instance.new("TextLabel")
+
+routeInfo.Position = UDim2.fromOffset(18, 42)
+routeInfo.Size = UDim2.new(1, -36, 0, 24)
+
+routeInfo.BackgroundTransparency = 1
+
+routeInfo.Text = "Маршрут состоит из пяти точек"
+routeInfo.TextColor3 = COLORS.Muted
+
+routeInfo.TextSize = 13
+routeInfo.Font = Enum.Font.Gotham
+
+routeInfo.TextXAlignment = Enum.TextXAlignment.Left
+
+routeInfo.Parent = routeCard
+
+--------------------------------------------------
+-- STATUS
+--------------------------------------------------
+
+local status = Instance.new("TextLabel")
+
+status.Position = UDim2.fromOffset(18, 75)
+status.Size = UDim2.new(1, -36, 0, 30)
+
+status.BackgroundTransparency = 1
+
+status.Text = "● ROUTE STOPPED"
+status.TextColor3 = COLORS.Red
+
+status.TextSize = 15
+status.Font = Enum.Font.GothamBold
+
+status.TextXAlignment = Enum.TextXAlignment.Left
+
+status.Parent = routeCard
+
+--------------------------------------------------
+-- START BUTTON
+--------------------------------------------------
+
+local startButton = Instance.new("TextButton")
+
+startButton.Position = UDim2.fromOffset(18, 120)
+startButton.Size = UDim2.fromOffset(185, 48)
+
+startButton.BackgroundColor3 = COLORS.Red
+
+startButton.Text = "START ROUTE"
+startButton.TextColor3 = COLORS.Text
+
+startButton.TextSize = 15
+startButton.Font = Enum.Font.GothamBold
+
+startButton.Parent = routeCard
+
+Instance.new("UICorner", startButton).CornerRadius =
+    UDim.new(0, 9)
+
+--------------------------------------------------
+-- STOP BUTTON
+--------------------------------------------------
+
+local stopButton = Instance.new("TextButton")
+
+stopButton.Position = UDim2.fromOffset(218, 120)
+stopButton.Size = UDim2.fromOffset(185, 48)
+
+stopButton.BackgroundColor3 = COLORS.Panel
+
+stopButton.Text = "STOP"
+stopButton.TextColor3 = COLORS.Text
+
+stopButton.TextSize = 15
+stopButton.Font = Enum.Font.GothamBold
+
+stopButton.Parent = routeCard
+
+Instance.new("UICorner", stopButton).CornerRadius =
+    UDim.new(0, 9)
+
+--------------------------------------------------
+-- POINT LABEL
+--------------------------------------------------
+
+local pointLabel = Instance.new("TextLabel")
+
+pointLabel.Position = UDim2.fromOffset(18, 185)
+pointLabel.Size = UDim2.new(1, -36, 0, 30)
+
+pointLabel.BackgroundTransparency = 1
+
+pointLabel.Text = "Ожидание запуска..."
+pointLabel.TextColor3 = COLORS.Text
+
+pointLabel.TextSize = 14
+pointLabel.Font = Enum.Font.GothamMedium
+
+pointLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+pointLabel.Parent = routeCard
+
+--------------------------------------------------
+-- DELAY LABEL
+--------------------------------------------------
+
+local delayLabel = Instance.new("TextLabel")
+delayLabel.Position = UDim2.fromOffset(18, 235)
+delayLabel.Size = UDim2.fromOffset(180, 30)
+
+delayLabel.BackgroundTransparency = 1
+
+delayLabel.Text = "Задержка: 10 секунд"
+delayLabel.TextColor3 = COLORS.Muted
+
+delayLabel.TextSize = 14
+delayLabel.Font = Enum.Font.Gotham
+
+delayLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+delayLabel.Parent = routeCard
+
+--------------------------------------------------
+-- AUTO E STATUS
+--------------------------------------------------
+
+local autoELabel = Instance.new("TextLabel")
+
+autoELabel.Position = UDim2.fromOffset(18, 275)
+autoELabel.Size = UDim2.new(1, -36, 0, 30)
+
+autoELabel.BackgroundTransparency = 1
+
+autoELabel.Text = "AUTO E: OFF | F6 ON / F7 OFF"
+autoELabel.TextColor3 = COLORS.Muted
+
+autoELabel.TextSize = 13
+autoELabel.Font = Enum.Font.GothamBold
+
+autoELabel.TextXAlignment = Enum.TextXAlignment.Left
+
+autoELabel.Parent = routeCard
+
+--------------------------------------------------
+-- WAYPOINTS CARD
+--------------------------------------------------
+
+local pointsCard = Instance.new("Frame")
+
+pointsCard.Position = UDim2.fromOffset(465, 110)
+pointsCard.Size = UDim2.fromOffset(235, 335)
+
+pointsCard.BackgroundColor3 = COLORS.Card
+pointsCard.BorderSizePixel = 0
+
+pointsCard.Parent = main
+
+Instance.new("UICorner", pointsCard).CornerRadius =
+    UDim.new(0, 12)
+
+--------------------------------------------------
+-- WAYPOINTS TITLE
+--------------------------------------------------
+
+local pointsTitle = Instance.new("TextLabel")
+
+pointsTitle.Position = UDim2.fromOffset(15, 12)
+pointsTitle.Size = UDim2.new(1, -30, 0, 30)
+
+pointsTitle.BackgroundTransparency = 1
+
+pointsTitle.Text = "WAYPOINTS"
+pointsTitle.TextColor3 = COLORS.Text
+
+pointsTitle.TextSize = 16
+pointsTitle.Font = Enum.Font.GothamBold
+
+pointsTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+pointsTitle.Parent = pointsCard
+
+--------------------------------------------------
+-- WAYPOINT LIST
+--------------------------------------------------
+
+for index, point in ipairs(points) do
+
+    local row = Instance.new("TextLabel")
+
+    row.Position = UDim2.fromOffset(
+        15,
+        50 + (index - 1) * 48
+    )
+
+    row.Size = UDim2.new(1, -30, 0, 42)
+
+    row.BackgroundColor3 = COLORS.Panel
+
+    row.Text = "  " .. index .. "   " ..
+        (point.interact and "E  •  INTERACT" or "SKIP")
+
+    row.TextColor3 =
+        point.interact and COLORS.Text or COLORS.Muted
+
+    row.TextSize = 12
+    row.Font = Enum.Font.GothamBold
+
+    row.TextXAlignment = Enum.TextXAlignment.Left
+
+    row.Parent = pointsCard
+
+    Instance.new("UICorner", row).CornerRadius =
+        UDim.new(0, 7)
+end
+
+--------------------------------------------------
+-- DRAG WINDOW
+--------------------------------------------------
+
+local dragging = false
+local dragStart
+local startPos
+
+header.InputBegan:Connect(function(input)
+
+    if input.UserInputType ==
+        Enum.UserInputType.MouseButton1 then
+
+        dragging = true
+        dragStart = input.Position
+        startPos = main.Position
     end
 end)
 
---========================================================
--- INIT
---========================================================
+UserInputService.InputChanged:Connect(function(input)
 
-showPage("Главная")
+    if dragging and input.UserInputType ==
+        Enum.UserInputType.MouseMovement then
 
-print("Kot:3 Route Menu loaded")
-print("RightShift - Show / Hide")
+        local delta = input.Position - dragStart
+
+        main.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+
+    if input.UserInputType ==
+        Enum.UserInputType.MouseButton1 then
+
+        dragging = false
+    end
+end)
+
+--------------------------------------------------
+-- CHARACTER
+--------------------------------------------------
+
+local function getCharacter()
+
+    local character =
+        player.Character or player.CharacterAdded:Wait()
+
+    local root =
+        character:WaitForChild("HumanoidRootPart")
+
+    return character, root
+end
+
+--------------------------------------------------
+-- AUTO E CONTROL
+--------------------------------------------------
+
+local function setAutoE(enabled)
+
+    autoE = enabled
+
+    if autoE then
+[24.10.2026 18:06] 𓆩⋆｡° 𐌳ઝ𐌵ᱬ𐌳𐍅ᱛ𐍂𐌵 °｡⋆𓆪: autoELabel.Text = "AUTO E: ON | F7 TO STOP"
+        autoELabel.TextColor3 = COLORS.Green
+
+        print("AUTO E: ON")
+
+    else
+
+        autoELabel.Text = "AUTO E: OFF | F6 TO START"
+        autoELabel.TextColor3 = COLORS.Muted
+
+        print("AUTO E: OFF")
+    end
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+
+    if gameProcessed then
+        return
+    end
+
+    if input.KeyCode == Enum.KeyCode.F6 then
+
+        setAutoE(true)
+
+    elseif input.KeyCode == Enum.KeyCode.F7 then
+
+        setAutoE(false)
+    end
+end)
+
+--------------------------------------------------
+-- PROXIMITY PROMPT INTERACTION
+--------------------------------------------------
+
+local function interactWithPrompt()
+
+    if not autoE then
+        return
+    end
+
+    local character, root = getCharacter()
+
+    local nearestPrompt = nil
+    local nearestDistance = math.huge
+
+    for _, object in ipairs(
+        workspace:GetDescendants()
+    ) do
+
+        if object:IsA("ProximityPrompt")
+            and object.Enabled then
+
+            local parent = object.Parent
+
+            local promptPosition = nil
+
+            if parent:IsA("BasePart") then
+
+                promptPosition = parent.Position
+
+            elseif parent:IsA("Attachment") then
+
+                promptPosition = parent.WorldPosition
+            end
+
+            if promptPosition then
+
+                local distance =
+                    (root.Position - promptPosition).Magnitude
+
+                if distance <= object.MaxActivationDistance
+                    and distance < nearestDistance then
+
+                    nearestPrompt = object
+                    nearestDistance = distance
+                end
+            end
+        end
+    end
+
+    if nearestPrompt then
+
+        nearestPrompt:InputHoldBegin()
+
+        task.wait(
+            math.max(
+                nearestPrompt.HoldDuration,
+                INTERACTION_DELAY
+            )
+        )
+
+        nearestPrompt:InputHoldEnd()
+    end
+end
+
+--------------------------------------------------
+-- TELEPORT TO POINT
+--------------------------------------------------
+
+local function teleportTo(point, index)
+
+    if not running then
+        return
+    end
+
+    local character, root = getCharacter()
+
+    currentPoint = index
+
+    pointLabel.Text =
+        "Текущая точка: " .. index .. "/" .. #points
+
+    character:PivotTo(
+        CFrame.new(point.position)
+    )
+
+    root.AssemblyLinearVelocity = Vector3.zero
+    root.AssemblyAngularVelocity = Vector3.zero
+
+    task.wait(INTERACTION_DELAY)
+
+    if point.interact and autoE then
+
+        interactWithPrompt()
+
+    end
+end
+
+--------------------------------------------------
+-- STOP ROUTE
+--------------------------------------------------
+
+local function stopRoute()
+
+    running = false
+
+    status.Text = "● ROUTE STOPPED"
+    status.TextColor3 = COLORS.Red
+
+    pointLabel.Text = "Ожидание запуска..."
+
+    startButton.Text = "START ROUTE"
+end
+
+--------------------------------------------------
+-- START ROUTE
+--------------------------------------------------
+
+startButton.MouseButton1Click:Connect(function()
+
+    if running then
+        return
+    end
+
+    running = true
+
+    status.Text = "● ROUTE ACTIVE"
+    status.TextColor3 = COLORS.Green
+
+    startButton.Text = "ROUTE ACTIVE"
+
+    task.spawn(function()
+
+        while running do
+
+            for index, point in ipairs(points) do
+
+                if not running then
+                    break
+                end
+
+                teleportTo(point, index)
+
+                local startTime = os.clock()
+
+                while running
+                    and os.clock() - startTime <
+                    TELEPORT_DELAY do
+
+                    task.wait(0.1)
+                end
+            end
+        end
+
+        stopRoute()
+    end)
+end)
+
+--------------------------------------------------
+-- STOP BUTTON
+--------------------------------------------------
+
+stopButton.MouseButton1Click:Connect(function()
+
+    stopRoute()
+end)
+--------------------------------------------------
+-- RESPAWN
+--------------------------------------------------
+
+player.CharacterAdded:Connect(function()
+
+    if running then
+        stopRoute()
+    end
+end)
+
+--------------------------------------------------
+-- FINAL
+--------------------------------------------------
+
+print("INTERMEDIATE STUDIO loaded")
+print("Author: Kot:3")
+print("Assisted by: ChatGPT (OpenAI)")
+print("F6 = Auto E ON")
+print("F7 = Auto E OFF")
