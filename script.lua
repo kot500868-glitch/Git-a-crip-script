@@ -7,7 +7,9 @@ local SPEED = 40
 local ARRIVAL_RADIUS = 5
 
 local points = {
+    Vector3.new(391, 2, -1106),
     Vector3.new(302, 1, -243),
+    Vector3.new(349, 2, -1092),
     Vector3.new(338, 20, -1218),
     Vector3.new(210, 23, -9447),
     Vector3.new(137, 25, 9947)
