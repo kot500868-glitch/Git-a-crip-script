@@ -25,7 +25,7 @@ gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local button = Instance.new("TextButton")
-button.Size = UDim2.fromOffset(160, 45)
+button.Size = UDim2.fromOffset(200, 45)
 button.Position = UDim2.fromOffset(20, 20)
 button.Text = "START ROUTE"
 button.BackgroundColor3 = Color3.fromRGB(40, 170, 80)
@@ -76,20 +76,22 @@ local function findNearestPrompt()
     return nearestPrompt
 end
 
--- Телепорт и взаимодействие
-local function teleportTo(target)
+-- Телепорт
+local function teleportTo(target, index)
     local currentCharacter, currentHumanoid, currentRoot = getCharacter()
 
     if not running then
         return
     end
 
+    button.Text = "POINT " .. index .. "/" .. #points
+
     currentCharacter:PivotTo(CFrame.new(target))
 
     currentRoot.AssemblyLinearVelocity = Vector3.zero
     currentRoot.AssemblyAngularVelocity = Vector3.zero
 
-    task.wait(0.3)
+    task.wait(0.5)
 
     if not running then
         return
@@ -98,21 +100,10 @@ local function teleportTo(target)
     local prompt = findNearestPrompt()
 
     if prompt then
-        -- Имитация удержания клавиши E для ProximityPrompt
-        pcall(function()
-            prompt:InputHoldBegin()
-            task.wait(prompt.HoldDuration)
-            prompt:InputHoldEnd()
-        end)
+        print("Найден ProximityPrompt:", prompt:GetFullName())
+    else
+        print("На этой точке ProximityPrompt не найден")
     end
-end
-
--- Остановка маршрута
-local function stopRoute()
-    running = false
-
-    button.Text = "START ROUTE"
-    button.BackgroundColor3 = Color3.fromRGB(40, 170, 80)
 end
 
 -- Задержка с возможностью остановки
@@ -122,6 +113,14 @@ local function waitDelay(seconds)
     while running and os.clock() - startTime < seconds do
         task.wait(0.05)
     end
+end
+
+-- Остановка маршрута
+local function stopRoute()
+    running = false
+
+    button.Text = "START ROUTE"
+    button.BackgroundColor3 = Color3.fromRGB(40, 170, 80)
 end
 
 -- Кнопка START / STOP
@@ -138,12 +137,12 @@ button.MouseButton1Click:Connect(function()
 
     task.spawn(function()
         while running do
-            for _, point in ipairs(points) do
+            for index, point in ipairs(points) do
                 if not running then
                     break
                 end
 
-                teleportTo(point)
+                teleportTo(point, index)
                 waitDelay(TELEPORT_DELAY)
             end
         end
@@ -153,9 +152,7 @@ button.MouseButton1Click:Connect(function()
 end)
 
 -- Остановка при смерти персонажа
-player.CharacterAdded:Connect(function(newCharacter)
-    character = newCharacter
-
+player.CharacterAdded:Connect(function()
     if running then
         stopRoute()
     end
