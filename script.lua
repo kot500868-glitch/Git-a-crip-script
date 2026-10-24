@@ -80,12 +80,12 @@ subtitle.TextXAlignment = Enum.TextXAlignment.Left
 subtitle.Parent = header
 
 local close = Instance.new("TextButton")
-close.Size = UDim2.fromOffset(34, 34)
+close.Size = UDim2.fromOffset(28, 28)
 close.Position = UDim2.new(1, -48, 0, 18)
 close.BackgroundColor3 = COLORS.Card
 close.Text = "×"
 close.TextColor3 = COLORS.Text
-close.TextSize = 24
+close.TextSize = 20
 close.Font = Enum.Font.GothamBold
 close.Parent = header
 Instance.new("UICorner", close).CornerRadius = UDim.new(0, 8)
@@ -156,12 +156,12 @@ end
 
 local function pageButton(page, text, callback)
     local b = Instance.new("TextButton")
-    b.Size = UDim2.new(1, -24, 0, 34)
+    b.Size = UDim2.new(1, -24, 0, 28)
     b.BackgroundColor3 = COLORS.Accent
     b.BackgroundTransparency = settings.buttonTransparency
     b.Text = text
     b.TextColor3 = COLORS.Text
-    b.TextSize = 13
+    b.TextSize = 12
     b.Font = Enum.Font.GothamBold
     b.AutoButtonColor = true
     b.LayoutOrder = #page:GetChildren()
@@ -268,8 +268,8 @@ local navNames = {"Main", "Settings", "Instructions", "Creator", "Credits", "Abo
 for i, name in ipairs(navNames) do
     local b = Instance.new("TextButton")
     b.Name = name
-    b.Position = UDim2.fromOffset(8, 8 + (i-1)*48)
-    b.Size = UDim2.new(1, -16, 0, 40)
+    b.Position = UDim2.fromOffset(8, 8 + (i-1)*41)
+    b.Size = UDim2.new(1, -16, 0, 34)
     b.BackgroundColor3 = COLORS.Accent
     b.BackgroundTransparency = 0.35
     b.Text = name
@@ -406,6 +406,11 @@ pageLabel(instructions, "INSTRUCTIONS", 30)
 pageLabel(instructions, "• Navigate with the buttons on the left.", 28)
 pageLabel(instructions, "• Open Settings to change theme and transparency.", 38)
 pageLabel(instructions, "• Custom RGB uses three numbers from 0 to 255.", 38)
+pageLabel(instructions, "• Auto Farm: press START AUTO FARM to begin the route.", 38)
+pageLabel(instructions, "• Press STOP AUTO FARM to stop the route.", 34)
+pageLabel(instructions, "• Auto E / automatic interaction: click AUTO INTERACT: OFF to turn it ON.", 48)
+pageLabel(instructions, "• Click AUTO INTERACT: ON again to turn automatic E interaction OFF.", 48)
+pageLabel(instructions, "• Auto interaction only attempts nearby ProximityPrompt objects at route points marked INTERACT.", 52)
 pageLabel(instructions, "• Close the window with × in the top-right corner.", 38)
 
 local creator = newPage("Creator")
