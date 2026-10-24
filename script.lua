@@ -7,6 +7,8 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
+local routeRunning = false
+local autoInteract = false
 
 local old = playerGui:FindFirstChild("IntermediateStudioUI")
 if old then old:Destroy() end
@@ -87,7 +89,7 @@ close.TextSize = 24
 close.Font = Enum.Font.GothamBold
 close.Parent = header
 Instance.new("UICorner", close).CornerRadius = UDim.new(0, 8)
-close.MouseButton1Click:Connect(function() gui:Destroy() end)
+close.MouseButton1Click:Connect(function() routeRunning = false; gui:Destroy() end)
 
 local sidebar = Instance.new("Frame")
 sidebar.Position = UDim2.fromOffset(14, 86)
@@ -281,9 +283,89 @@ for i, name in ipairs(navNames) do
 end
 
 local mainPage = newPage("Main")
-pageLabel(mainPage, "ROUTE CONTROL", 32)
-pageLabel(mainPage, "This UI shell is ready for your own permitted game controls.", 44, COLORS.Muted)
-pageLabel(mainPage, "Use the Settings page to customize the appearance.", 32, COLORS.Muted)
+pageLabel(mainPage, "AUTO FARM / ROUTE CONTROL", 30)
+pageLabel(mainPage, "Маршрут: 5 точек • ожидание на точке: 10 сек.", 28, COLORS.Muted)
+local routeStatus = pageLabel(mainPage, "Статус: остановлен", 28, COLORS.Muted)
+local routePointStatus = pageLabel(mainPage, "Текущая точка: —", 28, COLORS.Text)
+local TELEPORT_DELAY = 10
+local INTERACTION_DELAY = 0.5
+local routePoints = {
+    {position = Vector3.new(302, 1, -243), interact = true},
+    {position = Vector3.new(338, 22, -1218), interact = true},
+    {position = Vector3.new(221, 25, -9447), interact = true},
+    {position = Vector3.new(215, 25, -1210), interact = false},
+    {position = Vector3.new(137, 30, 9949), interact = true},
+}
+local function currentRoot()
+    local character = player.Character or player.CharacterAdded:Wait()
+    return character, character:WaitForChild("HumanoidRootPart")
+end
+local function interactWithNearbyPrompt()
+    if not autoInteract then return end
+    local _, root = currentRoot()
+    local nearest, nearestDistance = nil, math.huge
+    for _, item in ipairs(workspace:GetDescendants()) do
+        if item:IsA("ProximityPrompt") and item.Enabled then
+            local parent = item.Parent
+            local pos
+            if parent:IsA("BasePart") then pos = parent.Position
+            elseif parent:IsA("Attachment") then pos = parent.WorldPosition end
+            if pos then
+                local distance = (root.Position - pos).Magnitude
+                if distance <= item.MaxActivationDistance and distance < nearestDistance then
+                    nearest, nearestDistance = item, distance
+                end
+            end
+        end
+    end
+    if nearest then
+        -- Studio own-game interaction: trigger prompt through Roblox prompt API.
+        nearest:InputHoldBegin()
+        task.wait(math.max(nearest.HoldDuration, INTERACTION_DELAY))
+        nearest:InputHoldEnd()
+    end
+end
+local function stopRoute()
+    routeRunning = false
+    routeStatus.Text = "Статус: остановлен"
+    routeStatus.TextColor3 = COLORS.Muted
+end
+pageButton(mainPage, "START AUTO FARM", function()
+    if routeRunning then return end
+    routeRunning = true
+    routeStatus.Text = "Статус: маршрут запущен"
+    routeStatus.TextColor3 = Color3.fromRGB(50, 220, 125)
+    task.spawn(function()
+        while routeRunning do
+            for i, point in ipairs(routePoints) do
+                if not routeRunning then break end
+                local character, root = currentRoot()
+                routePointStatus.Text = ("Текущая точка: %d / %d"):format(i, #routePoints)
+                character:PivotTo(CFrame.new(point.position))
+                root.AssemblyLinearVelocity = Vector3.zero
+                root.AssemblyAngularVelocity = Vector3.zero
+                task.wait(INTERACTION_DELAY)
+                if point.interact and autoInteract and routeRunning then
+                    interactWithNearbyPrompt()
+                end
+                local startAt = os.clock()
+                while routeRunning and os.clock() - startAt < TELEPORT_DELAY do task.wait(0.1) end
+            end
+        end
+        routePointStatus.Text = "Текущая точка: —"
+    end)
+end)
+pageButton(mainPage, "STOP AUTO FARM", stopRoute)
+local autoInteractButton
+ autoInteractButton = pageButton(mainPage, "AUTO INTERACT: OFF", function()
+    autoInteract = not autoInteract
+    autoInteractButton.Text = autoInteract and "AUTO INTERACT: ON" or "AUTO INTERACT: OFF"
+end)
+pageLabel(mainPage, "Точки маршрута", 24, COLORS.Muted)
+for i, point in ipairs(routePoints) do
+    local coords = point.position
+    pageLabel(mainPage, ("%d. %d, %d, %d • %s"):format(i, coords.X, coords.Y, coords.Z, point.interact and "INTERACT" or "SKIP"), 26)
+end
 
 local settingsPage = newPage("Settings")
 pageLabel(settingsPage, "APPEARANCE SETTINGS", 30)
@@ -344,6 +426,10 @@ pageLabel(about, "Name: INTERMEDIATE STUDIO", 32)
 pageLabel(about, "Purpose: customizable interface prototype", 38)
 pageLabel(about, "Development time: not specified in the source.", 42, COLORS.Muted)
 pageLabel(about, "Version: UI prototype", 32)
+
+player.CharacterAdded:Connect(function()
+    if routeRunning then stopRoute() end
+end)
 
 -- Drag window from header
 local UserInputService = game:GetService("UserInputService")
