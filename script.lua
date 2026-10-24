@@ -3,19 +3,15 @@ local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 
-local SPEED = 50
+local SPEED = 70
 local ARRIVAL_RADIUS = 10
 
 local points = {
-    Vector3.new(391, 2, -1106),
     Vector3.new(302, 1, -243),
-    Vector3.new(349, 2, -1092),
-    Vector3.new(344, 116, -1222),
-    Vector3.new(210, 116, -9447),
-    Vector3.new(212, 23, -9447),
-    Vector3.new(210, 116, -9447),
-    Vector3.new(137, 116, 9947),
-    Vector3.new(137, 25, 9947),
+    Vector3.new(338, 20, -1218),
+    Vector3.new(221, 23, -9447),
+    Vector3.new(137, 25, 9949),
+  
 }
 
 local running = false
