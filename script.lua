@@ -1,5 +1,4 @@
 local Players = game:GetService("Players")
-local ProximityPromptService = game:GetService("ProximityPromptService")
 
 local player = Players.LocalPlayer
 
@@ -12,13 +11,7 @@ local points = {
 }
 
 local running = false
-local character
-local humanoid
-local root
-
 local TELEPORT_DELAY = 10
-local INTERACTION_INTERVAL = 2
-local PROMPT_SEARCH_DISTANCE = 15
 
 -- GUI
 local gui = Instance.new("ScreenGui")
@@ -37,57 +30,26 @@ button.Font = Enum.Font.GothamBold
 button.Parent = gui
 
 local function getCharacter()
-    character = player.Character or player.CharacterAdded:Wait()
-    humanoid = character:WaitForChild("Humanoid")
-    root = character:WaitForChild("HumanoidRootPart")
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
+    local root = character:WaitForChild("HumanoidRootPart")
 
     return character, humanoid, root
 end
 
-local function findNearestPrompt()
-    local _, _, rootPart = getCharacter()
-
-    local nearestPrompt
-    local nearestDistance = PROMPT_SEARCH_DISTANCE
-
-    for _, object in ipairs(workspace:GetDescendants()) do
-        if object:IsA("ProximityPrompt") and object.Enabled then
-            local parent = object.Parent
-            local part
-
-            if parent:IsA("BasePart") then
-                part = parent
-            elseif parent:IsA("Attachment") then
-                part = parent.Parent
-            end
-
-            if part and part:IsA("BasePart") then
-                local distance = (rootPart.Position - part.Position).Magnitude
-
-                if distance <= nearestDistance then
-                    nearestDistance = distance
-                    nearestPrompt = object
-                end
-            end
-        end
-    end
-
-    return nearestPrompt
-end
-
 local function teleportTo(point, index)
-    local currentCharacter, currentHumanoid, currentRoot = getCharacter()
-
     if not running then
         return
     end
 
+    local character, humanoid, root = getCharacter()
+
     button.Text = "POINT " .. index .. "/" .. #points
 
-    currentCharacter:PivotTo(CFrame.new(point.position))
+    character:PivotTo(CFrame.new(point.position))
 
-    currentRoot.AssemblyLinearVelocity = Vector3.zero
-    currentRoot.AssemblyAngularVelocity = Vector3.zero
+    root.AssemblyLinearVelocity = Vector3.zero
+    root.AssemblyAngularVelocity = Vector3.zero
 
     task.wait(0.5)
 
@@ -95,20 +57,11 @@ local function teleportTo(point, index)
         return
     end
 
-    if not point.interact then
-        print("Точка " .. index .. ": взаимодействие отключено")
-        return
-    end
-
-    local prompt = findNearestPrompt()
-
-    if prompt then
-        print("Найден ProximityPrompt:", prompt:GetFullName())
-
-        -- Взаимодействие с заказом должно обрабатываться
-        -- серверным скриптом через ProximityPrompt.Triggered.
+    if point.interact then
+        print("Точка " .. index .. ": требуется взаимодействие")
+        -- Здесь вызывается серверная логика заказа.
     else
-        print("На точке " .. index .. " ProximityPrompt не найден")
+        print("Точка " .. index .. ": взаимодействие пропущено")
     end
 end
 
@@ -116,13 +69,12 @@ local function waitDelay(seconds)
     local startTime = os.clock()
 
     while running and os.clock() - startTime < seconds do
-        task.wait(0.05)
+        task.wait(0.1)
     end
 end
 
 local function stopRoute()
     running = false
-
     button.Text = "START ROUTE"
     button.BackgroundColor3 = Color3.fromRGB(40, 170, 80)
 end
