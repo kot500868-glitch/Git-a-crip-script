@@ -1,0 +1,588 @@
+--========================================================
+-- CUSTOM ROUTE MENU
+-- Для собственной игры в Roblox Studio
+-- LocalScript -> StarterPlayer -> StarterPlayerScripts
+--========================================================
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+--========================================================
+-- SETTINGS
+--========================================================
+
+local SETTINGS = {
+    Delay = 3,
+    AutoInteract = false,
+    LoopRoute = false,
+    StartKey = Enum.KeyCode.F6,
+    StopKey = Enum.KeyCode.F7,
+}
+
+local route = {}
+local selectedPoint = nil
+local running = false
+local minimized = false
+
+--========================================================
+-- CHARACTER FUNCTIONS
+--========================================================
+
+local function getCharacter()
+    return player.Character
+end
+
+local function getRoot()
+    local character = getCharacter()
+
+    if not character then
+        return nil
+    end
+
+    return character:FindFirstChild("HumanoidRootPart")
+end
+
+local function getCurrentPosition()
+    local root = getRoot()
+
+    if not root then
+        return nil
+    end
+
+    return root.Position
+end
+
+local function moveToPosition(position)
+    local character = getCharacter()
+    local root = getRoot()
+
+    if not character or not root then
+        return false
+    end
+
+    character:PivotTo(CFrame.new(position))
+    return true
+end
+
+--========================================================
+-- GUI HELPERS
+--========================================================
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "CustomRouteMenu"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.Parent = playerGui
+
+local function createCorner(parent, radius)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, radius or 8)
+    corner.Parent = parent
+    return corner
+end
+
+local function createLabel(parent, text, size, position)
+    local label = Instance.new("TextLabel")
+    label.Size = size
+    label.Position = position
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(235, 235, 245)
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 13
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = parent
+
+    return label
+end
+
+local function createButton(parent, text, size, position, color)
+    local button = Instance.new("TextButton")
+    button.Size = size
+    button.Position = position
+    button.BackgroundColor3 = color or Color3.fromRGB(55, 65, 85)
+    button.Text = text
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.Font = Enum.Font.GothamBold
+    button.TextSize = 13
+    button.AutoButtonColor = true
+    button.Parent = parent
+
+    createCorner(button, 7)
+
+    return button
+end
+
+local function createTextBox(parent, placeholder, size, position, value)
+    local box = Instance.new("TextBox")
+    box.Size = size
+    box.Position = position
+    box.BackgroundColor3 = Color3.fromRGB(35, 39, 52)
+    box.TextColor3 = Color3.fromRGB(255, 255, 255)
+    box.PlaceholderColor3 = Color3.fromRGB(150, 150, 160)
+    box.PlaceholderText = placeholder
+    box.Text = tostring(value or "")
+    box.Font = Enum.Font.Gotham
+    box.TextSize = 13
+    box.ClearTextOnFocus = false
+    box.Parent = parent
+
+    createCorner(box, 6)
+
+    return box
+end
+
+--========================================================
+-- MAIN WINDOW
+--========================================================
+
+local main = Instance.new("Frame")
+main.Name = "Main"
+main.Size = UDim2.fromOffset(350, 460)
+main.Position = UDim2.new(0, 30, 0.5, -230)
+main.BackgroundColor3 = Color3.fromRGB(25, 27, 35)
+main.BorderSizePixel = 0
+main.Parent = gui
+
+createCorner(main, 12)
+
+local header = Instance.new("Frame")
+header.Size = UDim2.new(1, 0, 0, 42)
+header.BackgroundColor3 = Color3.fromRGB(35, 39, 52)
+header.BorderSizePixel = 0
+header.Parent = main
+
+createCorner(header, 12)
+
+local title = createLabel(
+    header,
+    "CUSTOM ROUTE",
+    UDim2.new(1, -90, 1, 0),
+    UDim2.fromOffset(14, 0)
+)
+
+title.Font = Enum.Font.GothamBold
+title.TextSize = 15
+
+local minimizeButton = createButton(
+    header,
+    "—",
+    UDim2.fromOffset(32, 28),
+    UDim2.new(1, -42, 0, 7),
+    Color3.fromRGB(65, 70, 90)
+)
+
+--========================================================
+-- DRAG WINDOW
+--========================================================
+
+local dragging = false
+local dragStart = nil
+local startPosition = nil
+
+header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPosition = main.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+
+        main.Position = UDim2.new(
+            startPosition.X.Scale,
+            startPosition.X.Offset + delta.X,
+            startPosition.Y.Scale,
+            startPosition.Y.Offset + delta.Y
+        )
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+--========================================================
+-- CONTENT
+--========================================================
+
+local content = Instance.new("Frame")
+content.Size = UDim2.new(1, 0, 1, -42)
+content.Position = UDim2.fromOffset(0, 42)
+content.BackgroundTransparency = 1
+content.Parent = main
+
+local statusLabel = createLabel(
+    content,
+    "Статус: остановлен",
+    UDim2.new(1, -20, 0, 25),
+    UDim2.fromOffset(10, 5)
+)
+
+local countLabel = createLabel(
+    content,
+    "Точек маршрута: 0",
+    UDim2.new(1, -20, 0, 22),
+    UDim2.fromOffset(10, 29)
+)
+
+--========================================================
+-- ROUTE LIST
+--========================================================
+
+local routeList = Instance.new("ScrollingFrame")
+routeList.Name = "RouteList"
+routeList.Size = UDim2.new(1, -20, 0, 150)
+routeList.Position = UDim2.fromOffset(10, 55)
+routeList.BackgroundColor3 = Color3.fromRGB(32, 35, 45)
+routeList.BorderSizePixel = 0
+routeList.ScrollBarThickness = 5
+routeList.CanvasSize = UDim2.fromOffset(0, 0)
+routeList.Parent = content
+
+createCorner(routeList, 8)
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.Padding = UDim.new(0, 5)
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Parent = routeList
+
+local function refreshRouteList()
+    for _, child in ipairs(routeList:GetChildren()) do
+        if child:IsA("TextButton") then
+            child:Destroy()
+        end
+    end
+
+    countLabel.Text = "Точек маршрута: " .. #route
+
+    for index, point in ipairs(route) do
+        local pointButton = createButton(
+            routeList,
+            string.format(
+                "%s  |  X: %.1f  Y: %.1f  Z: %.1f",
+                index,
+                point.X,
+                point.Y,
+                point.Z
+            ),
+            UDim2.new(1, -10, 0, 30),
+            UDim2.fromOffset(5, 0),
+            selectedPoint == index
+                and Color3.fromRGB(65, 110, 160)
+                or Color3.fromRGB(48, 52, 67)
+        )
+
+        pointButton.LayoutOrder = index
+
+        pointButton.MouseButton1Click:Connect(function()
+            selectedPoint = index
+            refreshRouteList()
+        end)
+    end
+
+    routeList.CanvasSize = UDim2.fromOffset(
+        0,
+        listLayout.AbsoluteContentSize.Y + 10
+    )
+end
+
+--========================================================
+-- COORDINATE EDITOR
+--========================================================
+
+createLabel(
+    content,
+    "Координаты выбранной точки",
+    UDim2.new(1, -20, 0, 20),
+    UDim2.fromOffset(10, 211)
+)
+
+local xBox = createTextBox(
+    content,
+    "X",
+    UDim2.new(0.3, -5, 0, 30),
+    UDim2.fromOffset(10, 235),
+    ""
+)
+
+local yBox = createTextBox(
+    content,
+    "Y",
+    UDim2.new(0.3, -5, 0, 30),
+    UDim2.new(0.35, 0, 0, 235),
+    ""
+)
+
+local zBox = createTextBox(
+    content,
+    "Z",
+    UDim2.new(0.3, -5, 0, 30),
+    UDim2.new(0.7, -5, 0, 235),
+    ""
+)
+
+local function loadSelectedPoint()
+    if not selectedPoint or not route[selectedPoint] then
+        return
+    end
+
+    local point = route[selectedPoint]
+
+    xBox.Text = tostring(point.X)
+    yBox.Text = tostring(point.Y)
+    zBox.Text = tostring(point.Z)
+end
+
+local function saveSelectedPoint()
+    if not selectedPoint or not route[selectedPoint] then
+        return
+    end
+
+    local x = tonumber(xBox.Text)
+    local y = tonumber(yBox.Text)
+    local z = tonumber(zBox.Text)
+
+    if not x or not y or not z then
+        statusLabel.Text = "Ошибка: координаты должны быть числами"
+        return
+    end
+
+    route[selectedPoint] = Vector3.new(x, y, z)
+
+    refreshRouteList()
+    loadSelectedPoint()
+end
+
+local savePointButton = createButton(
+    content,
+    "Сохранить координаты",
+    UDim2.new(1, -20, 0, 30),
+    UDim2.fromOffset(10, 270),
+    Color3.fromRGB(65, 95, 145)
+)
+
+savePointButton.MouseButton1Click:Connect(saveSelectedPoint)
+
+--========================================================
+-- ROUTE CONTROLS
+--========================================================
+
+local addPointButton = createButton(
+    content,
+    "+ Добавить текущую позицию",
+    UDim2.new(1, -20, 0, 30),
+    UDim2.fromOffset(10, 307),
+    Color3.fromRGB(45, 130, 85)
+)
+
+addPointButton.MouseButton1Click:Connect(function()
+    local position = getCurrentPosition()
+
+    if not position then
+        statusLabel.Text = "Персонаж не найден"
+        return
+    end
+
+    table.insert(route, position)
+    selectedPoint = #route
+
+    refreshRouteList()
+    loadSelectedPoint()
+end)
+
+local deletePointButton = createButton(
+    content,
+    "Удалить выбранную точку",
+    UDim2.new(1, -20, 0, 30),
+    UDim2.fromOffset(10, 342),
+    Color3.fromRGB(150, 65, 65)
+)
+
+deletePointButton.MouseButton1Click:Connect(function()
+    if not selectedPoint or not route[selectedPoint] then
+        statusLabel.Text = "Сначала выбери точку"
+        return
+    end
+
+    table.remove(route, selectedPoint)
+
+    if #route == 0 then
+        selectedPoint = nil
+    else
+        selectedPoint = math.clamp(selectedPoint, 1, #route)
+    end
+
+    refreshRouteList()
+    loadSelectedPoint()
+end)
+
+local clearRouteButton = createButton(
+    content,
+    "Очистить маршрут",
+    UDim2.new(1, -20, 0, 30),
+    UDim2.fromOffset(10, 377),
+    Color3.fromRGB(100, 75, 75)
+)
+
+clearRouteButton.MouseButton1Click:Connect(function()
+    running = false
+    table.clear(route)
+    selectedPoint = nil
+
+    xBox.Text = ""
+    yBox.Text = ""
+    zBox.Text = ""
+
+    refreshRouteList()
+    statusLabel.Text = "Маршрут очищен"
+end)
+
+--========================================================
+-- ROUTE SETTINGS
+--========================================================
+
+local delayBox = createTextBox(
+    content,
+    "Задержка, сек.",
+    UDim2.new(0.45, -5, 0, 28),
+    UDim2.fromOffset(10, 412),
+    SETTINGS.Delay
+)
+
+delayBox.FocusLost:Connect(function()
+    local value = tonumber(delayBox.Text)
+
+    if value then
+        SETTINGS.Delay = math.clamp(value, 0, 120)
+        delayBox.Text = tostring(SETTINGS.Delay)
+    else
+        delayBox.Text = tostring(SETTINGS.Delay)
+    end
+end)
+
+--========================================================
+-- ROUTE EXECUTION
+--========================================================
+
+local function runRoute()
+    if running then
+        return
+    end
+
+    if #route == 0 then
+        statusLabel.Text = "Добавь точки маршрута"
+        return
+    end
+
+    running = true
+
+    task.spawn(function()
+        repeat
+            for index, position in ipairs(route) do
+                if not running then
+                    break
+                end
+
+                statusLabel.Text = string.format(
+                    "Маршрут: точка %d из %d",
+                    index,
+                    #route
+                )
+
+                local success = moveToPosition(position)
+
+                if not success then
+                    statusLabel.Text = "Не удалось переместить персонажа"
+                    running = false
+                    break
+                end
+
+                task.wait(SETTINGS.Delay)
+            end
+        until not SETTINGS.LoopRoute or not running
+
+        running = false
+        statusLabel.Text = "Статус: остановлен"
+    end)
+end
+
+local function stopRoute()
+    running = false
+    statusLabel.Text = "Статус: остановлен"
+end
+
+--========================================================
+-- START / STOP BUTTONS
+--========================================================
+
+local startButton = createButton(
+    content,
+    "▶️  Запустить маршрут",
+    UDim2.new(0.48, -5, 0, 32),
+    UDim2.fromOffset(10, 445),
+    Color3.fromRGB(45, 145, 85)
+)
+
+local stopButton = createButton(
+    content,
+    "■  Остановить",
+    UDim2.new(0.48, -5, 0, 32),
+    UDim2.new(0.52, 0, 0, 445),
+    Color3.fromRGB(165, 65, 65)
+)
+
+startButton.MouseButton1Click:Connect(runRoute)
+stopButton.MouseButton1Click:Connect(stopRoute)
+
+--========================================================
+-- KEYBINDS
+--========================================================
+
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then
+        return
+    end
+
+    if input.KeyCode == SETTINGS.StartKey then
+        runRoute()
+    elseif input.KeyCode == SETTINGS.StopKey then
+        stopRoute()
+    end
+end)
+
+--========================================================
+-- MINIMIZE
+--========================================================
+
+minimizeButton.MouseButton1Click:Connect(function()
+    minimized = not minimized
+
+    content.Visible = not minimized
+
+    if minimized then
+        main.Size = UDim2.fromOffset(350, 42)
+        minimizeButton.Text = "+"
+    else
+        main.Size = UDim2.fromOffset(350, 460)
+        minimizeButton.Text = "—"
+    end
+end)
+
+--========================================================
+-- INIT
+--========================================================
+
+refreshRouteList()
+
+print("[Custom Route] Menu loaded")
+print("[Custom Route] F6 - Start | F7 - Stop")
