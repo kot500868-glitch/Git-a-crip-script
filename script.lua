@@ -4,9 +4,9 @@ local player = Players.LocalPlayer
 
 local points = {
     Vector3.new(302, 1, -243),
-    Vector3.new(338, 20, -1218),
-    Vector3.new(221, 23, -9447),
-    Vector3.new(137, 25, 9949),
+    Vector3.new(338, 22, -1218),
+    Vector3.new(221, 25, -9447),
+    Vector3.new(137, 27, 9949),
 }
 
 local running = false
@@ -14,7 +14,7 @@ local character
 local humanoid
 local root
 
-local TELEPORT_DELAY = 5
+local TELEPORT_DELAY = 10
 local PROMPT_SEARCH_DISTANCE = 15
 
 -- GUI
