@@ -1,13 +1,14 @@
 local Players = game:GetService("Players")
+local ProximityPromptService = game:GetService("ProximityPromptService")
 
 local player = Players.LocalPlayer
 
 local points = {
-    {position = Vector3.new(302, 1, -243), pressE = true},
-    {position = Vector3.new(338, 22, -1218), pressE = true},
-    {position = Vector3.new(221, 25, -9447), pressE = true},
-    {position = Vector3.new(215, 25, -1210), pressE = false}, -- без E
-    {position = Vector3.new(137, 30, 9949), pressE = true},
+    {position = Vector3.new(302, 1, -243), interact = true},
+    {position = Vector3.new(338, 22, -1218), interact = true},
+    {position = Vector3.new(221, 25, -9447), interact = true},
+    {position = Vector3.new(215, 25, -1210), interact = false},
+    {position = Vector3.new(137, 30, 9949), interact = true},
 }
 
 local running = false
@@ -16,8 +17,8 @@ local humanoid
 local root
 
 local TELEPORT_DELAY = 10
-local PROMPT_SEARCH_DISTANCE = 15
 local INTERACTION_INTERVAL = 2
+local PROMPT_SEARCH_DISTANCE = 15
 
 -- GUI
 local gui = Instance.new("ScreenGui")
@@ -30,32 +31,29 @@ button.Size = UDim2.fromOffset(200, 45)
 button.Position = UDim2.fromOffset(20, 20)
 button.Text = "START ROUTE"
 button.BackgroundColor3 = Color3.fromRGB(40, 170, 80)
-button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.TextColor3 = Color3.new(1, 1, 1)
 button.TextSize = 16
 button.Font = Enum.Font.GothamBold
 button.Parent = gui
 
--- Получение персонажа
 local function getCharacter()
     character = player.Character or player.CharacterAdded:Wait()
-
     humanoid = character:WaitForChild("Humanoid")
     root = character:WaitForChild("HumanoidRootPart")
 
     return character, humanoid, root
 end
 
--- Поиск ближайшего ProximityPrompt
 local function findNearestPrompt()
     local _, _, rootPart = getCharacter()
 
-    local nearestPrompt = nil
+    local nearestPrompt
     local nearestDistance = PROMPT_SEARCH_DISTANCE
 
     for _, object in ipairs(workspace:GetDescendants()) do
         if object:IsA("ProximityPrompt") and object.Enabled then
             local parent = object.Parent
-            local part = nil
+            local part
 
             if parent:IsA("BasePart") then
                 part = parent
@@ -77,8 +75,7 @@ local function findNearestPrompt()
     return nearestPrompt
 end
 
--- Телепорт
-local function teleportTo(target, index, pressE)
+local function teleportTo(point, index)
     local currentCharacter, currentHumanoid, currentRoot = getCharacter()
 
     if not running then
@@ -87,7 +84,7 @@ local function teleportTo(target, index, pressE)
 
     button.Text = "POINT " .. index .. "/" .. #points
 
-    currentCharacter:PivotTo(CFrame.new(target))
+    currentCharacter:PivotTo(CFrame.new(point.position))
 
     currentRoot.AssemblyLinearVelocity = Vector3.zero
     currentRoot.AssemblyAngularVelocity = Vector3.zero
@@ -98,7 +95,7 @@ local function teleportTo(target, index, pressE)
         return
     end
 
-    if not pressE then
+    if not point.interact then
         print("Точка " .. index .. ": взаимодействие отключено")
         return
     end
@@ -108,15 +105,13 @@ local function teleportTo(target, index, pressE)
     if prompt then
         print("Найден ProximityPrompt:", prompt:GetFullName())
 
-        -- Для собственной игры:
-        -- взаимодействие с заказом нужно обрабатывать
-        -- серверной логикой ProximityPrompt.Triggered.
+        -- Взаимодействие с заказом должно обрабатываться
+        -- серверным скриптом через ProximityPrompt.Triggered.
     else
         print("На точке " .. index .. " ProximityPrompt не найден")
     end
 end
 
--- Задержка с возможностью остановки
 local function waitDelay(seconds)
     local startTime = os.clock()
 
@@ -125,7 +120,6 @@ local function waitDelay(seconds)
     end
 end
 
--- Остановка маршрута
 local function stopRoute()
     running = false
 
@@ -133,7 +127,6 @@ local function stopRoute()
     button.BackgroundColor3 = Color3.fromRGB(40, 170, 80)
 end
 
--- Кнопка START / STOP
 button.MouseButton1Click:Connect(function()
     if running then
         stopRoute()
@@ -151,12 +144,8 @@ button.MouseButton1Click:Connect(function()
                 if not running then
                     break
                 end
-                        teleportTo(
-                    point.position,
-                    index,
-                    point.pressE
-                )
 
+                teleportTo(point, index)
                 waitDelay(TELEPORT_DELAY)
             end
         end
@@ -165,7 +154,6 @@ button.MouseButton1Click:Connect(function()
     end)
 end)
 
--- Остановка при смерти персонажа
 player.CharacterAdded:Connect(function()
     if running then
         stopRoute()
