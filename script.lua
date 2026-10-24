@@ -3,7 +3,7 @@ local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 
-local SPEED = 20
+local SPEED = 30
 local ARRIVAL_RADIUS = 10
 
 local points = {
@@ -12,7 +12,13 @@ local points = {
     Vector3.new(349, 2, -1092),
     Vector3.new(338, 20, -1218),
     Vector3.new(210, 23, -9447),
-    Vector3.new(137, 25, 9947)
+    Vector3.new(137, 25, 9947),
+
+    -- 7-я точка (замени координаты)
+    Vector3.new(0, 0, 0),
+
+    -- 8-я точка (замени координаты)
+    Vector3.new(0, 0, 0)
 }
 
 local running = false
@@ -34,6 +40,10 @@ button.Size = UDim2.fromOffset(160, 45)
 button.Position = UDim2.fromOffset(20, 20)
 button.Text = "START ROUTE"
 button.Parent = gui
+
+button.BackgroundColor3 = Color3.fromRGB(40, 170, 80)
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.TextSize = 16
 
 -- Получение персонажа
 local function getCharacter()
@@ -91,8 +101,23 @@ local function disableNoclip()
     originalCollisions = {}
 end
 
+-- Получение скорости для точки
+local function getSpeed(pointIndex)
+    if pointIndex == 6 then
+        return 100
+    elseif pointIndex == 7 then
+        return 30
+    elseif pointIndex == 8 then
+        return 100
+    elseif pointIndex > 8 then
+        return 30
+    end
+
+    return SPEED
+end
+
 -- Полёт к точке
-local function flyTo(target)
+local function flyTo(target, pointIndex)
     local character, humanoid, root = getCharacter()
 
     local attachment = Instance.new("Attachment")
@@ -114,6 +139,8 @@ local function flyTo(target)
         Enum.HumanoidStateType.Physics
     )
 
+    local currentSpeed = getSpeed(pointIndex)
+
     while running and character.Parent do
         local direction = target - root.Position
         local distance = direction.Magnitude
@@ -122,7 +149,7 @@ local function flyTo(target)
             break
         end
 
-        velocity.VectorVelocity = direction.Unit * SPEED
+        velocity.VectorVelocity = direction.Unit * currentSpeed
 
         orientation.CFrame = CFrame.lookAt(
             root.Position,
@@ -142,11 +169,11 @@ local function flyTo(target)
         )
     end
 end
-
 -- Остановка маршрута
 local function stopRoute()
     running = false
     button.Text = "START ROUTE"
+    button.BackgroundColor3 = Color3.fromRGB(40, 170, 80)
 
     disableNoclip()
 end
@@ -159,17 +186,19 @@ button.MouseButton1Click:Connect(function()
     end
 
     running = true
+
     button.Text = "STOP ROUTE"
+    button.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
 
     task.spawn(function()
         enableNoclip()
 
-        for _, point in ipairs(points) do
+        for index, point in ipairs(points) do
             if not running then
                 break
             end
 
-            flyTo(point)
+            flyTo(point, index)
 
             if running then
                 task.wait(1)
@@ -179,6 +208,7 @@ button.MouseButton1Click:Connect(function()
         stopRoute()
     end)
 end)
+
 -- Сброс при смерти персонажа
 player.CharacterAdded:Connect(function(newCharacter)
     character = newCharacter
