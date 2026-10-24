@@ -15,6 +15,7 @@ local humanoid
 local root
 
 local TELEPORT_DELAY = 5
+local PROMPT_SEARCH_DISTANCE = 15
 
 -- GUI
 local gui = Instance.new("ScreenGui")
@@ -42,19 +43,67 @@ local function getCharacter()
     return character, humanoid, root
 end
 
--- Телепорт к точке
+-- Поиск ближайшего ProximityPrompt
+local function findNearestPrompt()
+    local _, _, rootPart = getCharacter()
+
+    local nearestPrompt = nil
+    local nearestDistance = PROMPT_SEARCH_DISTANCE
+
+    for _, object in ipairs(workspace:GetDescendants()) do
+        if object:IsA("ProximityPrompt") and object.Enabled then
+            local parent = object.Parent
+            local part = nil
+
+            if parent:IsA("BasePart") then
+                part = parent
+            elseif parent:IsA("Attachment") then
+                part = parent.Parent
+            end
+
+            if part and part:IsA("BasePart") then
+                local distance = (rootPart.Position - part.Position).Magnitude
+
+                if distance <= nearestDistance then
+                    nearestDistance = distance
+                    nearestPrompt = object
+                end
+            end
+        end
+    end
+
+    return nearestPrompt
+end
+
+-- Телепорт и взаимодействие
 local function teleportTo(target)
-    local character, humanoid, root = getCharacter()
+    local currentCharacter, currentHumanoid, currentRoot = getCharacter()
 
     if not running then
         return
     end
 
-    -- Для собственной игры:
-    character:PivotTo(CFrame.new(target))
+    currentCharacter:PivotTo(CFrame.new(target))
 
-    root.AssemblyLinearVelocity = Vector3.zero
-    root.AssemblyAngularVelocity = Vector3.zero
+    currentRoot.AssemblyLinearVelocity = Vector3.zero
+    currentRoot.AssemblyAngularVelocity = Vector3.zero
+
+    task.wait(0.3)
+
+    if not running then
+        return
+    end
+
+    local prompt = findNearestPrompt()
+
+    if prompt then
+        -- Имитация удержания клавиши E для ProximityPrompt
+        pcall(function()
+            prompt:InputHoldBegin()
+            task.wait(prompt.HoldDuration)
+            prompt:InputHoldEnd()
+        end)
+    end
 end
 
 -- Остановка маршрута
@@ -87,23 +136,15 @@ button.MouseButton1Click:Connect(function()
     button.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
 
     task.spawn(function()
-
-        -- Бесконечный маршрут
         while running do
-
             for _, point in ipairs(points) do
-
                 if not running then
                     break
                 end
 
                 teleportTo(point)
-
-                -- Ждем 5 секунд после каждой точки
                 waitDelay(TELEPORT_DELAY)
-
             end
-
         end
 
         stopRoute()
