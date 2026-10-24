@@ -14,7 +14,7 @@ local character
 local humanoid
 local root
 
-local TELEPORT_DELAY = 1
+local TELEPORT_DELAY = 5
 
 -- GUI
 local gui = Instance.new("ScreenGui")
@@ -29,6 +29,7 @@ button.Text = "START ROUTE"
 button.BackgroundColor3 = Color3.fromRGB(40, 170, 80)
 button.TextColor3 = Color3.fromRGB(255, 255, 255)
 button.TextSize = 16
+button.Font = Enum.Font.GothamBold
 button.Parent = gui
 
 -- Получение персонажа
@@ -51,7 +52,6 @@ local function teleportTo(target)
 
     root.CFrame = CFrame.new(target)
 
-    -- Останавливаем движение
     root.AssemblyLinearVelocity = Vector3.zero
     root.AssemblyAngularVelocity = Vector3.zero
 end
@@ -64,7 +64,7 @@ local function stopRoute()
     button.BackgroundColor3 = Color3.fromRGB(40, 170, 80)
 end
 
--- START / STOP
+-- Кнопка START / STOP
 button.MouseButton1Click:Connect(function()
     if running then
         stopRoute()
@@ -77,21 +77,36 @@ button.MouseButton1Click:Connect(function()
     button.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
 
     task.spawn(function()
-        for _, point in ipairs(points) do
-            if not running then
-                break
+
+        -- Бесконечный цикл
+        while running do
+
+            -- Проходим все точки
+            for _, point in ipairs(points) do
+
+                if not running then
+                    break
+                end
+
+                teleportTo(point)
+
+                -- Задержка 5 секунд
+                local elapsed = 0
+
+                while elapsed < TELEPORT_DELAY and running do
+                    local dt = task.wait(0.1)
+                    elapsed += dt
+                end
+
             end
 
-            teleportTo(point)
-
-            task.wait(TELEPORT_DELAY)
         end
 
         stopRoute()
     end)
 end)
 
--- Остановка при смерти
+-- Остановка при смерти персонажа
 player.CharacterAdded:Connect(function(newCharacter)
     character = newCharacter
 
