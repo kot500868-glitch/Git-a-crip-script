@@ -26,6 +26,9 @@ local root
 local originalCollisions = {}
 local noclipConnection
 
+local godModeConnection
+local forceField
+
 -- GUI
 local gui = Instance.new("ScreenGui")
 gui.Name = "WaypointGui"
@@ -50,6 +53,46 @@ local function getCharacter()
     root = character:WaitForChild("HumanoidRootPart")
 
     return character, humanoid, root
+end
+
+-- Включение бессмертия
+local function enableGodMode()
+    getCharacter()
+
+    if forceField then
+        forceField:Destroy()
+    end
+
+    forceField = Instance.new("ForceField")
+    forceField.Visible = false
+    forceField.Parent = character
+
+    if godModeConnection then
+        godModeConnection:Disconnect()
+    end
+
+    godModeConnection = RunService.Heartbeat:Connect(function()
+        if not running then
+            return
+        end
+
+        if humanoid and humanoid.Parent then
+            humanoid.Health = humanoid.MaxHealth
+        end
+    end)
+end
+
+-- Выключение бессмертия
+local function disableGodMode()
+    if godModeConnection then
+        godModeConnection:Disconnect()
+        godModeConnection = nil
+    end
+
+    if forceField then
+        forceField:Destroy()
+        forceField = nil
+    end
 end
 
 -- Включение ноуклипа
@@ -106,7 +149,7 @@ local function getSpeed(pointIndex)
         return 30
     elseif pointIndex == 8 then
         return 100
-    elseif pointIndex > 8 then
+    elseif pointIndex >= 9 then
         return 30
     end
 
@@ -125,7 +168,6 @@ local function flyTo(target, pointIndex)
     velocity.RelativeTo = Enum.ActuatorRelativeTo.World
     velocity.MaxForce = math.huge
     velocity.Parent = root
-
     local orientation = Instance.new("AlignOrientation")
     orientation.Attachment0 = attachment
     orientation.Mode = Enum.OrientationAlignmentMode.OneAttachment
@@ -166,13 +208,16 @@ local function flyTo(target, pointIndex)
         )
     end
 end
+
 -- Остановка маршрута
 local function stopRoute()
     running = false
+
     button.Text = "START ROUTE"
     button.BackgroundColor3 = Color3.fromRGB(40, 170, 80)
 
     disableNoclip()
+    disableGodMode()
 end
 
 -- Кнопка START / STOP
@@ -189,6 +234,7 @@ button.MouseButton1Click:Connect(function()
 
     task.spawn(function()
         enableNoclip()
+        enableGodMode()
 
         for index, point in ipairs(points) do
             if not running then
