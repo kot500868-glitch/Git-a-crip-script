@@ -3,11 +3,11 @@ local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
 local points = {
-    Vector3.new(302, 1, -243),
-    Vector3.new(338, 22, -1218),
-    Vector3.new(221, 25, -9447),
-    Vector3.new(215, 25, -1210),
-    Vector3.new(137, 30, 9949),
+    {position = Vector3.new(302, 1, -243), pressE = true},
+    {position = Vector3.new(338, 22, -1218), pressE = true},
+    {position = Vector3.new(221, 25, -9447), pressE = true},
+    {position = Vector3.new(215, 25, -1210), pressE = false}, -- без E
+    {position = Vector3.new(137, 30, 9949), pressE = true},
 }
 
 local running = false
@@ -17,6 +17,7 @@ local root
 
 local TELEPORT_DELAY = 10
 local PROMPT_SEARCH_DISTANCE = 15
+local INTERACTION_INTERVAL = 2
 
 -- GUI
 local gui = Instance.new("ScreenGui")
@@ -77,7 +78,7 @@ local function findNearestPrompt()
 end
 
 -- Телепорт
-local function teleportTo(target, index)
+local function teleportTo(target, index, pressE)
     local currentCharacter, currentHumanoid, currentRoot = getCharacter()
 
     if not running then
@@ -97,12 +98,21 @@ local function teleportTo(target, index)
         return
     end
 
+    if not pressE then
+        print("Точка " .. index .. ": взаимодействие отключено")
+        return
+    end
+
     local prompt = findNearestPrompt()
 
     if prompt then
         print("Найден ProximityPrompt:", prompt:GetFullName())
+
+        -- Для собственной игры:
+        -- взаимодействие с заказом нужно обрабатывать
+        -- серверной логикой ProximityPrompt.Triggered.
     else
-        print("На этой точке ProximityPrompt не найден")
+        print("На точке " .. index .. " ProximityPrompt не найден")
     end
 end
 
@@ -141,8 +151,12 @@ button.MouseButton1Click:Connect(function()
                 if not running then
                     break
                 end
+                        teleportTo(
+                    point.position,
+                    index,
+                    point.pressE
+                )
 
-                teleportTo(point, index)
                 waitDelay(TELEPORT_DELAY)
             end
         end
