@@ -3,7 +3,7 @@ local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 
-local SPEED = 20       -- скорость полёта
+local SPEED = 30
 local ARRIVAL_RADIUS = 5
 
 local points = {
@@ -12,6 +12,8 @@ local points = {
     Vector3.new(210, 23, -9447),
     Vector3.new(137, 25, 9947)
 }
+
+local running = false
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "WaypointGui"
@@ -24,32 +26,53 @@ button.Position = UDim2.fromOffset(20, 20)
 button.Text = "START ROUTE"
 button.Parent = gui
 
-local running = false
-local movementConnection
-
-local function getRoot()
+local function getCharacter()
     local character = player.Character or player.CharacterAdded:Wait()
-    return character:WaitForChild("HumanoidRootPart")
+    local humanoid = character:WaitForChild("Humanoid")
+    local root = character:WaitForChild("HumanoidRootPart")
+
+    return character, humanoid, root
 end
 
-local function moveToPoint(target)
-    local root = getRoot()
+local function flyTo(target)
+    local character, humanoid, root = getCharacter()
+
+    local attachment = Instance.new("Attachment")
+    attachment.Parent = root
+
+    local velocity = Instance.new("LinearVelocity")
+    velocity.Attachment0 = attachment
+    velocity.RelativeTo = Enum.ActuatorRelativeTo.World
+    velocity.MaxForce = math.huge
+    velocity.Parent = root
+
+    local orientation = Instance.new("AlignOrientation")
+    orientation.Attachment0 = attachment
+    orientation.Mode = Enum.OrientationAlignmentMode.OneAttachment
+    orientation.Responsiveness = 10
+    orientation.Parent = root
+
+    humanoid:ChangeState(Enum.HumanoidStateType.Physics)
 
     while running do
-        local delta = target - root.Position
-        local distance = delta.Magnitude
+        local direction = target - root.Position
+        local distance = direction.Magnitude
 
         if distance <= ARRIVAL_RADIUS then
-            return true
+            break
         end
 
-        local dt = RunService.Heartbeat:Wait()
-        local step = math.min(SPEED * dt, distance)
+        velocity.VectorVelocity = direction.Unit * SPEED
+        orientation.CFrame = CFrame.lookAt(root.Position, target)
 
-        root.CFrame = root.CFrame + delta.Unit * step
+        RunService.Heartbeat:Wait()
     end
 
-    return false
+    velocity:Destroy()
+    orientation:Destroy()
+    attachment:Destroy()
+
+    humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
 end
 
 button.MouseButton1Click:Connect(function()
@@ -64,12 +87,7 @@ button.MouseButton1Click:Connect(function()
                     break
                 end
 
-                local arrived = moveToPoint(point)
-
-                if not arrived then
-                    break
-                end
-
+                flyTo(point)
                 task.wait(1)
             end
 
