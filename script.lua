@@ -1,19 +1,16 @@
 --[[
-    INTERMEDIATE STUDIO
-    AUTO ROUTE + AUTO E
+    KOT:3 | CUSTOM ROUTE UI
+    LocalScript
+    Помести в StarterPlayer > StarterPlayerScripts
 
-    Author: Kot:3
-    Assisted by: ChatGPT (OpenAI)
-
-    Features:
-    - GUI Route Control
-    - Five Waypoints
-    - Auto E Interaction
-    - F6: Enable Auto E
-    - F7: Disable Auto E
-    - Start / Stop Route
-
-    Version: 1.0
+    Интерфейс:
+    - Фоновая картинка
+    - Настройка прозрачности окна
+    - Настройка прозрачности картинки
+    - Настройка цвета
+    - Кнопки Start / Stop
+    - Перетаскивание окна
+    - Открытие/закрытие меню клавишей F6
 ]]
 
 local Players = game:GetService("Players")
@@ -22,711 +19,393 @@ local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
---------------------------------------------------
--- CONFIGURATION
---------------------------------------------------
+-- НАСТРОЙКИ
+local BACKGROUND_IMAGE = "rbxassetid://1111733160486"
 
-local points = {
-    {position = Vector3.new(302, 1, -243), interact = true},
-    {position = Vector3.new(338, 22, -1218), interact = true},
-    {position = Vector3.new(221, 25, -9447), interact = true},
-    {position = Vector3.new(215, 25, -1210), interact = false},
-    {position = Vector3.new(137, 30, 9949), interact = true},
-}
+local WINDOW_COLOR = Color3.fromRGB(35, 35, 45)
+local ACCENT_COLOR = Color3.fromRGB(120, 80, 255)
 
-local running = false
-local autoE = false
-local currentPoint = 0
+local WINDOW_TRANSPARENCY = 0.15
+local IMAGE_TRANSPARENCY = 0.25
 
-local TELEPORT_DELAY = 10
-local INTERACTION_DELAY = 0.5
+local WINDOW_SIZE = UDim2.new(0, 420, 0, 340)
 
---------------------------------------------------
--- COLORS
---------------------------------------------------
-
-local COLORS = {
-    Background = Color3.fromRGB(10, 10, 12),
-    Panel = Color3.fromRGB(20, 20, 24),
-    Card = Color3.fromRGB(28, 28, 33),
-
-    Red = Color3.fromRGB(213, 31, 54),
-    RedLight = Color3.fromRGB(245, 55, 75),
-
-    Text = Color3.fromRGB(245, 245, 245),
-    Muted = Color3.fromRGB(160, 160, 170),
-
-    Green = Color3.fromRGB(50, 220, 125),
-    Border = Color3.fromRGB(65, 65, 72),
-}
-
---------------------------------------------------
--- CLEANUP
---------------------------------------------------
-
-local oldGui = playerGui:FindFirstChild("IntermediateGui")
-
+-- Удаляем старый интерфейс при повторном запуске
+local oldGui = playerGui:FindFirstChild("KotCustomRouteUI")
 if oldGui then
     oldGui:Destroy()
 end
 
---------------------------------------------------
 -- GUI
---------------------------------------------------
-
 local gui = Instance.new("ScreenGui")
-
-gui.Name = "IntermediateGui"
+gui.Name = "KotCustomRouteUI"
 gui.ResetOnSpawn = false
 gui.Parent = playerGui
 
---------------------------------------------------
--- MAIN WINDOW
---------------------------------------------------
-
+-- Главное окно
 local main = Instance.new("Frame")
-
-main.Size = UDim2.fromOffset(720, 470)
-main.Position = UDim2.new(0.5, -360, 0.5, -235)
-
-main.BackgroundColor3 = COLORS.Background
+main.Name = "Main"
+main.Size = WINDOW_SIZE
+main.Position = UDim2.new(0.5, -210, 0.5, -170)
+main.BackgroundColor3 = WINDOW_COLOR
+main.BackgroundTransparency = WINDOW_TRANSPARENCY
 main.BorderSizePixel = 0
-
+main.ClipsDescendants = true
 main.Parent = gui
 
-Instance.new("UICorner", main).CornerRadius =
-    UDim.new(0, 14)
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = main
 
-local outline = Instance.new("UIStroke")
+local stroke = Instance.new("UIStroke")
+stroke.Color = ACCENT_COLOR
+stroke.Thickness = 2
+stroke.Parent = main
 
-outline.Color = COLORS.Border
-outline.Thickness = 1
+-- Фоновая картинка
+local background = Instance.new("ImageLabel")
+background.Name = "Background"
+background.Size = UDim2.new(1, 0, 1, 0)
+background.Position = UDim2.new(0, 0, 0, 0)
+background.BackgroundTransparency = 1
+background.Image = BACKGROUND_IMAGE
+background.ImageTransparency = IMAGE_TRANSPARENCY
+background.ScaleType = Enum.ScaleType.Crop
+background.ZIndex = 0
+background.Parent = main
 
-outline.Parent = main
+local backgroundCorner = Instance.new("UICorner")
+backgroundCorner.CornerRadius = UDim.new(0, 12)
+backgroundCorner.Parent = background
 
---------------------------------------------------
--- HEADER
---------------------------------------------------
+-- Затемнение фона для читаемости
+local overlay = Instance.new("Frame")
+overlay.Name = "Overlay"
+overlay.Size = UDim2.new(1, 0, 1, 0)
+overlay.BackgroundColor3 = WINDOW_COLOR
+overlay.BackgroundTransparency = 0.35
+overlay.BorderSizePixel = 0
+overlay.ZIndex = 1
+overlay.Parent = main
 
-local header = Instance.new("Frame")
+local overlayCorner = Instance.new("UICorner")
+overlayCorner.CornerRadius = UDim.new(0, 12)
+overlayCorner.Parent = overlay
 
-header.Size = UDim2.new(1, 0, 0, 90)
-
-header.BackgroundColor3 = COLORS.Panel
-header.BorderSizePixel = 0
-
-header.Parent = main
-
-Instance.new("UICorner", header).CornerRadius =
-    UDim.new(0, 14)
-
---------------------------------------------------
--- TITLE
---------------------------------------------------
-
+-- Заголовок
 local title = Instance.new("TextLabel")
-
-title.Position = UDim2.fromOffset(22, 12)
-title.Size = UDim2.fromOffset(450, 38)
-
+title.Name = "Title"
+title.Size = UDim2.new(1, -60, 0, 40)
+title.Position = UDim2.new(0, 15, 0, 5)
 title.BackgroundTransparency = 1
-
-title.Text = "INTERMEDIATE"
-title.TextColor3 = COLORS.Text
-
-title.TextSize = 28
-title.Font = Enum.Font.GothamBlack
-
+title.Text = "KOT:3  |  CUSTOM ROUTE"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 17
 title.TextXAlignment = Enum.TextXAlignment.Left
+title.ZIndex = 2
+title.Parent = main
 
-title.Parent = header
-
---------------------------------------------------
--- SUBTITLE
---------------------------------------------------
-
-local subtitle = Instance.new("TextLabel")
-
-subtitle.Position = UDim2.fromOffset(23, 50)
-subtitle.Size = UDim2.fromOffset(450, 24)
-
-subtitle.BackgroundTransparency = 1
-
-subtitle.Text = "STUDIO / AUTO ROUTE / Kot:3"
-subtitle.TextColor3 = COLORS.Red
-
-subtitle.TextSize = 14
-subtitle.Font = Enum.Font.GothamBold
-
-subtitle.TextXAlignment = Enum.TextXAlignment.Left
-
-subtitle.Parent = header
-
---------------------------------------------------
--- CLOSE BUTTON
---------------------------------------------------
-
+-- Кнопка закрытия
 local closeButton = Instance.new("TextButton")
-
-closeButton.Size = UDim2.fromOffset(36, 36)
-closeButton.Position = UDim2.new(1, -50, 0, 20)
-closeButton.BackgroundColor3 = COLORS.Card
-
-closeButton.Text = "×"
-closeButton.TextColor3 = COLORS.Text
-
-closeButton.TextSize = 25
+closeButton.Size = UDim2.new(0, 32, 0, 32)
+closeButton.Position = UDim2.new(1, -42, 0, 8)
+closeButton.BackgroundColor3 = Color3.fromRGB(200, 60, 70)
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.new(1, 1, 1)
 closeButton.Font = Enum.Font.GothamBold
+closeButton.TextSize = 15
+closeButton.ZIndex = 3
+closeButton.Parent = main
 
-closeButton.Parent = header
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 8)
+closeCorner.Parent = closeButton
 
-Instance.new("UICorner", closeButton).CornerRadius =
-    UDim.new(0, 8)
+-- Разделитель
+local divider = Instance.new("Frame")
+divider.Size = UDim2.new(1, -24, 0, 2)
+divider.Position = UDim2.new(0, 12, 0, 48)
+divider.BackgroundColor3 = ACCENT_COLOR
+divider.BorderSizePixel = 0
+divider.ZIndex = 2
+divider.Parent = main
 
-closeButton.MouseButton1Click:Connect(function()
-    gui.Enabled = false
-end)
-
---------------------------------------------------
--- ROUTE CARD
---------------------------------------------------
-
-local routeCard = Instance.new("Frame")
-
-routeCard.Position = UDim2.fromOffset(20, 110)
-routeCard.Size = UDim2.fromOffset(430, 335)
-
-routeCard.BackgroundColor3 = COLORS.Card
-routeCard.BorderSizePixel = 0
-
-routeCard.Parent = main
-
-Instance.new("UICorner", routeCard).CornerRadius =
-    UDim.new(0, 12)
-
---------------------------------------------------
--- ROUTE TITLE
---------------------------------------------------
-
-local routeTitle = Instance.new("TextLabel")
-
-routeTitle.Position = UDim2.fromOffset(18, 12)
-routeTitle.Size = UDim2.new(1, -36, 0, 30)
-
-routeTitle.BackgroundTransparency = 1
-
-routeTitle.Text = "ROUTE CONTROL"
-routeTitle.TextColor3 = COLORS.Text
-
-routeTitle.TextSize = 18
-routeTitle.Font = Enum.Font.GothamBold
-
-routeTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-routeTitle.Parent = routeCard
-
---------------------------------------------------
--- ROUTE INFO
---------------------------------------------------
-
-local routeInfo = Instance.new("TextLabel")
-
-routeInfo.Position = UDim2.fromOffset(18, 42)
-routeInfo.Size = UDim2.new(1, -36, 0, 24)
-
-routeInfo.BackgroundTransparency = 1
-
-routeInfo.Text = "Маршрут состоит из пяти точек"
-routeInfo.TextColor3 = COLORS.Muted
-
-routeInfo.TextSize = 13
-routeInfo.Font = Enum.Font.Gotham
-
-routeInfo.TextXAlignment = Enum.TextXAlignment.Left
-
-routeInfo.Parent = routeCard
-
---------------------------------------------------
--- STATUS
---------------------------------------------------
-
+-- Статус
 local status = Instance.new("TextLabel")
-
-status.Position = UDim2.fromOffset(18, 75)
-status.Size = UDim2.new(1, -36, 0, 30)
-
+status.Size = UDim2.new(1, -30, 0, 28)
+status.Position = UDim2.new(0, 15, 0, 58)
 status.BackgroundTransparency = 1
-
-status.Text = "● ROUTE STOPPED"
-status.TextColor3 = COLORS.Red
-
-status.TextSize = 15
-status.Font = Enum.Font.GothamBold
-
+status.Text = "Status: Stopped"
+status.TextColor3 = Color3.fromRGB(230, 230, 230)
+status.Font = Enum.Font.Gotham
+status.TextSize = 14
 status.TextXAlignment = Enum.TextXAlignment.Left
-
-status.Parent = routeCard
-
---------------------------------------------------
--- START BUTTON
---------------------------------------------------
-
-local startButton = Instance.new("TextButton")
-
-startButton.Position = UDim2.fromOffset(18, 120)
-startButton.Size = UDim2.fromOffset(185, 48)
-
-startButton.BackgroundColor3 = COLORS.Red
-
-startButton.Text = "START ROUTE"
-startButton.TextColor3 = COLORS.Text
-
-startButton.TextSize = 15
-startButton.Font = Enum.Font.GothamBold
-
-startButton.Parent = routeCard
-
-Instance.new("UICorner", startButton).CornerRadius =
-    UDim.new(0, 9)
-
---------------------------------------------------
--- STOP BUTTON
---------------------------------------------------
-
-local stopButton = Instance.new("TextButton")
-
-stopButton.Position = UDim2.fromOffset(218, 120)
-stopButton.Size = UDim2.fromOffset(185, 48)
-
-stopButton.BackgroundColor3 = COLORS.Panel
-
-stopButton.Text = "STOP"
-stopButton.TextColor3 = COLORS.Text
-
-stopButton.TextSize = 15
-stopButton.Font = Enum.Font.GothamBold
-
-stopButton.Parent = routeCard
-
-Instance.new("UICorner", stopButton).CornerRadius =
-    UDim.new(0, 9)
-
---------------------------------------------------
--- POINT LABEL
---------------------------------------------------
-
-local pointLabel = Instance.new("TextLabel")
-
-pointLabel.Position = UDim2.fromOffset(18, 185)
-pointLabel.Size = UDim2.new(1, -36, 0, 30)
-
-pointLabel.BackgroundTransparency = 1
-
-pointLabel.Text = "Ожидание запуска..."
-pointLabel.TextColor3 = COLORS.Text
-
-pointLabel.TextSize = 14
-pointLabel.Font = Enum.Font.GothamMedium
-
-pointLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-pointLabel.Parent = routeCard
-
---------------------------------------------------
--- DELAY LABEL
---------------------------------------------------
-
-local delayLabel = Instance.new("TextLabel")
-delayLabel.Position = UDim2.fromOffset(18, 235)
-delayLabel.Size = UDim2.fromOffset(180, 30)
-
-delayLabel.BackgroundTransparency = 1
-
-delayLabel.Text = "Задержка: 10 секунд"
-delayLabel.TextColor3 = COLORS.Muted
-
-delayLabel.TextSize = 14
-delayLabel.Font = Enum.Font.Gotham
-
-delayLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-delayLabel.Parent = routeCard
-
---------------------------------------------------
--- AUTO E STATUS
---------------------------------------------------
-
-local autoELabel = Instance.new("TextLabel")
-
-autoELabel.Position = UDim2.fromOffset(18, 275)
-autoELabel.Size = UDim2.new(1, -36, 0, 30)
-
-autoELabel.BackgroundTransparency = 1
-
-autoELabel.Text = "AUTO E: OFF | F6 ON / F7 OFF"
-autoELabel.TextColor3 = COLORS.Muted
-
-autoELabel.TextSize = 13
-autoELabel.Font = Enum.Font.GothamBold
-
-autoELabel.TextXAlignment = Enum.TextXAlignment.Left
-
-autoELabel.Parent = routeCard
-
---------------------------------------------------
--- WAYPOINTS CARD
---------------------------------------------------
-
-local pointsCard = Instance.new("Frame")
-
-pointsCard.Position = UDim2.fromOffset(465, 110)
-pointsCard.Size = UDim2.fromOffset(235, 335)
-
-pointsCard.BackgroundColor3 = COLORS.Card
-pointsCard.BorderSizePixel = 0
-
-pointsCard.Parent = main
-
-Instance.new("UICorner", pointsCard).CornerRadius =
-    UDim.new(0, 12)
-
---------------------------------------------------
--- WAYPOINTS TITLE
---------------------------------------------------
-
-local pointsTitle = Instance.new("TextLabel")
-
-pointsTitle.Position = UDim2.fromOffset(15, 12)
-pointsTitle.Size = UDim2.new(1, -30, 0, 30)
-
-pointsTitle.BackgroundTransparency = 1
-
-pointsTitle.Text = "WAYPOINTS"
-pointsTitle.TextColor3 = COLORS.Text
-
-pointsTitle.TextSize = 16
-pointsTitle.Font = Enum.Font.GothamBold
-
-pointsTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-pointsTitle.Parent = pointsCard
-
---------------------------------------------------
--- WAYPOINT LIST
---------------------------------------------------
-
-for index, point in ipairs(points) do
-
-    local row = Instance.new("TextLabel")
-
-    row.Position = UDim2.fromOffset(
-        15,
-        50 + (index - 1) * 48
-    )
-
-    row.Size = UDim2.new(1, -30, 0, 42)
-
-    row.BackgroundColor3 = COLORS.Panel
-
-    row.Text = "  " .. index .. "   " ..
-        (point.interact and "E  •  INTERACT" or "SKIP")
-
-    row.TextColor3 =
-        point.interact and COLORS.Text or COLORS.Muted
-
-    row.TextSize = 12
-    row.Font = Enum.Font.GothamBold
-
-    row.TextXAlignment = Enum.TextXAlignment.Left
-
-    row.Parent = pointsCard
-
-    Instance.new("UICorner", row).CornerRadius =
-        UDim.new(0, 7)
+status.ZIndex = 2
+status.Parent = main
+-- Создание кнопок
+local function createButton(name, text, position, color)
+    local button = Instance.new("TextButton")
+    button.Name = name
+    button.Size = UDim2.new(0, 180, 0, 36)
+    button.Position = position
+    button.BackgroundColor3 = color
+    button.BorderSizePixel = 0
+    button.Text = text
+    button.TextColor3 = Color3.new(1, 1, 1)
+    button.Font = Enum.Font.GothamBold
+    button.TextSize = 14
+    button.ZIndex = 2
+    button.Parent = main
+
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(0, 8)
+    buttonCorner.Parent = button
+
+    return button
 end
 
---------------------------------------------------
--- DRAG WINDOW
---------------------------------------------------
+local startButton = createButton(
+    "StartButton",
+    "START",
+    UDim2.new(0, 15, 0, 95),
+    ACCENT_COLOR
+)
 
-local dragging = false
+local stopButton = createButton(
+    "StopButton",
+    "STOP",
+    UDim2.new(0, 225, 0, 95),
+    Color3.fromRGB(190, 55, 65)
+)
+
+-- Настройки
+local settingsTitle = Instance.new("TextLabel")
+settingsTitle.Size = UDim2.new(1, -30, 0, 25)
+settingsTitle.Position = UDim2.new(0, 15, 0, 145)
+settingsTitle.BackgroundTransparency = 1
+settingsTitle.Text = "SETTINGS"
+settingsTitle.TextColor3 = Color3.new(1, 1, 1)
+settingsTitle.Font = Enum.Font.GothamBold
+settingsTitle.TextSize = 14
+settingsTitle.TextXAlignment = Enum.TextXAlignment.Left
+settingsTitle.ZIndex = 2
+settingsTitle.Parent = main
+
+-- Слайдер прозрачности окна
+local function createSlider(labelText, yPosition, defaultValue, callback)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -30, 0, 20)
+    label.Position = UDim2.new(0, 15, 0, yPosition)
+    label.BackgroundTransparency = 1
+    label.Text = labelText .. ": " .. tostring(defaultValue)
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 12
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.ZIndex = 2
+    label.Parent = main
+
+    local sliderBack = Instance.new("Frame")
+    sliderBack.Size = UDim2.new(1, -30, 0, 8)
+    sliderBack.Position = UDim2.new(0, 15, 0, yPosition + 22)
+    sliderBack.BackgroundColor3 = Color3.fromRGB(65, 65, 75)
+    sliderBack.BorderSizePixel = 0
+    sliderBack.ZIndex = 2
+    sliderBack.Parent = main
+
+    local sliderCorner = Instance.new("UICorner")
+    sliderCorner.CornerRadius = UDim.new(1, 0)
+    sliderCorner.Parent = sliderBack
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new(defaultValue, 0, 1, 0)
+    fill.BackgroundColor3 = ACCENT_COLOR
+    fill.BorderSizePixel = 0
+    fill.ZIndex = 3
+    fill.Parent = sliderBack
+
+    local fillCorner = Instance.new("UICorner")
+    fillCorner.CornerRadius = UDim.new(1, 0)
+    fillCorner.Parent = fill
+
+    local dragging = false
+
+    local function updateSlider(input)
+        local relativeX = input.Position.X - sliderBack.AbsolutePosition.X
+        local value = math.clamp(
+            relativeX / sliderBack.AbsoluteSize.X,
+            0,
+            1
+        )
+
+        fill.Size = UDim2.new(value, 0, 1, 0)
+        label.Text = labelText .. ": " .. string.format("%.2f", value)
+
+        callback(value)
+    end
+
+    sliderBack.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+
+            dragging = true
+            updateSlider(input)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging then
+            if input.UserInputType == Enum.UserInputType.MouseMovement
+                or input.UserInputType == Enum.UserInputType.Touch then
+
+                updateSlider(input)
+            end
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+
+            dragging = false
+        end
+    end)
+end
+
+-- Прозрачность окна
+createSlider("Window Transparency", 175, WINDOW_TRANSPARENCY, function(value)
+    main.BackgroundTransparency = value
+end)
+-- Прозрачность изображения
+createSlider("Image Transparency", 220, IMAGE_TRANSPARENCY, function(value)
+    background.ImageTransparency = value
+end)
+
+-- Выбор цвета
+local colorTitle = Instance.new("TextLabel")
+colorTitle.Size = UDim2.new(1, -30, 0, 20)
+colorTitle.Position = UDim2.new(0, 15, 0, 265)
+colorTitle.BackgroundTransparency = 1
+colorTitle.Text = "THEME COLOR"
+colorTitle.TextColor3 = Color3.new(1, 1, 1)
+colorTitle.Font = Enum.Font.Gotham
+colorTitle.TextSize = 12
+colorTitle.TextXAlignment = Enum.TextXAlignment.Left
+colorTitle.ZIndex = 2
+colorTitle.Parent = main
+
+local colors = {
+    Color3.fromRGB(120, 80, 255),
+    Color3.fromRGB(0, 170, 255),
+    Color3.fromRGB(0, 200, 130),
+    Color3.fromRGB(255, 100, 120),
+    Color3.fromRGB(255, 170, 0),
+    Color3.fromRGB(240, 240, 240),
+}
+
+for i, color in ipairs(colors) do
+    local colorButton = Instance.new("TextButton")
+    colorButton.Name = "Color" .. i
+    colorButton.Size = UDim2.new(0, 38, 0, 25)
+    colorButton.Position = UDim2.new(0, 15 + ((i - 1) * 48), 0, 290)
+    colorButton.BackgroundColor3 = color
+    colorButton.Text = ""
+    colorButton.BorderSizePixel = 0
+    colorButton.ZIndex = 3
+    colorButton.Parent = main
+
+    local colorCorner = Instance.new("UICorner")
+    colorCorner.CornerRadius = UDim.new(0, 6)
+    colorCorner.Parent = colorButton
+
+    colorButton.MouseButton1Click:Connect(function()
+        ACCENT_COLOR = color
+        stroke.Color = color
+        divider.BackgroundColor3 = color
+        startButton.BackgroundColor3 = color
+
+        for _, child in ipairs(main:GetDescendants()) do
+            if child:IsA("Frame") and child.Parent
+                and child.Parent.Name == "SliderBack" then
+                child.BackgroundColor3 = color
+            end
+        end
+    end)
+end
+
+-- Перетаскивание окна
+local draggingWindow = false
 local dragStart
-local startPos
+local startPosition
 
-header.InputBegan:Connect(function(input)
+title.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
 
-    if input.UserInputType ==
-        Enum.UserInputType.MouseButton1 then
-
-        dragging = true
+        draggingWindow = true
         dragStart = input.Position
-        startPos = main.Position
+        startPosition = main.Position
     end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
+    if draggingWindow then
+        if input.UserInputType == Enum.UserInputType.MouseMovement
+            or input.UserInputType == Enum.UserInputType.Touch then
 
-    if dragging and input.UserInputType ==
-        Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
 
-        local delta = input.Position - dragStart
-
-        main.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
+            main.Position = UDim2.new(
+                startPosition.X.Scale,
+                startPosition.X.Offset + delta.X,
+                startPosition.Y.Scale,
+                startPosition.Y.Offset + delta.Y
+            )
+        end
     end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
 
-    if input.UserInputType ==
-        Enum.UserInputType.MouseButton1 then
-
-        dragging = false
+        draggingWindow = false
     end
 end)
 
---------------------------------------------------
--- CHARACTER
---------------------------------------------------
+-- Кнопки управления
+local running = false
 
-local function getCharacter()
+startButton.MouseButton1Click:Connect(function()
+    running = true
+    status.Text = "Status: Running"
+    status.TextColor3 = Color3.fromRGB(100, 255, 150)
 
-    local character =
-        player.Character or player.CharacterAdded:Wait()
+    -- Добавь сюда логику маршрута для своего Roblox-проекта.
+end)
 
-    local root =
-        character:WaitForChild("HumanoidRootPart")
+stopButton.MouseButton1Click:Connect(function()
+    running = false
+    status.Text = "Status: Stopped"
+    status.TextColor3 = Color3.fromRGB(230, 230, 230)
 
-    return character, root
-end
+    -- Здесь останови логику маршрута своего проекта.
+end)
 
---------------------------------------------------
--- AUTO E CONTROL
---------------------------------------------------
-
-local function setAutoE(enabled)
-
-    autoE = enabled
-
-    if autoE then
-        autoELabel.Text = "AUTO E: ON | F7 TO STOP"
-        autoELabel.TextColor3 = COLORS.Green
-
-        print("AUTO E: ON")
-
-    else
-
-        autoELabel.Text = "AUTO E: OFF | F6 TO START"
-        autoELabel.TextColor3 = COLORS.Muted
-
-        print("AUTO E: OFF")
-    end
-end
+-- Закрытие и открытие
+closeButton.MouseButton1Click:Connect(function()
+    main.Visible = false
+end)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-
     if gameProcessed then
         return
     end
 
     if input.KeyCode == Enum.KeyCode.F6 then
-
-        setAutoE(true)
-
-    elseif input.KeyCode == Enum.KeyCode.F7 then
-
-        setAutoE(false)
+        main.Visible = not main.Visible
     end
 end)
 
---------------------------------------------------
--- PROXIMITY PROMPT INTERACTION
---------------------------------------------------
-
-local function interactWithPrompt()
-
-    if not autoE then
-        return
-    end
-
-    local character, root = getCharacter()
-
-    local nearestPrompt = nil
-    local nearestDistance = math.huge
-
-    for _, object in ipairs(
-        workspace:GetDescendants()
-    ) do
-
-        if object:IsA("ProximityPrompt")
-            and object.Enabled then
-
-            local parent = object.Parent
-
-            local promptPosition = nil
-
-            if parent:IsA("BasePart") then
-
-                promptPosition = parent.Position
-
-            elseif parent:IsA("Attachment") then
-
-                promptPosition = parent.WorldPosition
-            end
-
-            if promptPosition then
-
-                local distance =
-                    (root.Position - promptPosition).Magnitude
-
-                if distance <= object.MaxActivationDistance
-                    and distance < nearestDistance then
-
-                    nearestPrompt = object
-                    nearestDistance = distance
-                end
-            end
-        end
-    end
-
-    if nearestPrompt then
-
-        nearestPrompt:InputHoldBegin()
-
-        task.wait(
-            math.max(
-                nearestPrompt.HoldDuration,
-                INTERACTION_DELAY
-            )
-        )
-
-        nearestPrompt:InputHoldEnd()
-    end
-end
-
---------------------------------------------------
--- TELEPORT TO POINT
---------------------------------------------------
-
-local function teleportTo(point, index)
-
-    if not running then
-        return
-    end
-
-    local character, root = getCharacter()
-
-    currentPoint = index
-
-    pointLabel.Text =
-        "Текущая точка: " .. index .. "/" .. #points
-
-    character:PivotTo(
-        CFrame.new(point.position)
-    )
-
-    root.AssemblyLinearVelocity = Vector3.zero
-    root.AssemblyAngularVelocity = Vector3.zero
-
-    task.wait(INTERACTION_DELAY)
-
-    if point.interact and autoE then
-
-        interactWithPrompt()
-
-    end
-end
-
---------------------------------------------------
--- STOP ROUTE
---------------------------------------------------
-
-local function stopRoute()
-
-    running = false
-
-    status.Text = "● ROUTE STOPPED"
-    status.TextColor3 = COLORS.Red
-
-    pointLabel.Text = "Ожидание запуска..."
-
-    startButton.Text = "START ROUTE"
-end
-
---------------------------------------------------
--- START ROUTE
---------------------------------------------------
-
-startButton.MouseButton1Click:Connect(function()
-
-    if running then
-        return
-    end
-
-    running = true
-
-    status.Text = "● ROUTE ACTIVE"
-    status.TextColor3 = COLORS.Green
-
-    startButton.Text = "ROUTE ACTIVE"
-
-    task.spawn(function()
-
-        while running do
-
-            for index, point in ipairs(points) do
-
-                if not running then
-                    break
-                end
-
-                teleportTo(point, index)
-
-                local startTime = os.clock()
-
-                while running
-                    and os.clock() - startTime <
-                    TELEPORT_DELAY do
-
-                    task.wait(0.1)
-                end
-            end
-        end
-
-        stopRoute()
-    end)
-end)
-
---------------------------------------------------
--- STOP BUTTON
---------------------------------------------------
-
-stopButton.MouseButton1Click:Connect(function()
-
-    stopRoute()
-end)
---------------------------------------------------
--- RESPAWN
---------------------------------------------------
-
-player.CharacterAdded:Connect(function()
-
-    if running then
-        stopRoute()
-    end
-end)
-
---------------------------------------------------
--- FINAL
---------------------------------------------------
-
-print("INTERMEDIATE STUDIO loaded")
-print("Author: Kot:3")
-print("Assisted by: ChatGPT (OpenAI)")
-print("F6 = Auto E ON")
-print("F7 = Auto E OFF")
+print("KOT:3 Custom Route UI loaded!")
