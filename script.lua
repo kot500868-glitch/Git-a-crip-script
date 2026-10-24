@@ -3,7 +3,7 @@ local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 
-local SPEED = 30
+local SPEED = 40
 local ARRIVAL_RADIUS = 5
 
 local points = {
